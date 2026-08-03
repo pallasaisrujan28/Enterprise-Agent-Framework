@@ -1,0 +1,200 @@
+---
+title: "Architecture Vault"
+type: index
+tags: [index]
+source: .kiro/specs/enterprise-agent-framework/design.md
+generated: 2026-08-01T14:18:45+00:00
+---
+
+# Enterprise Agent Framework — Architecture Vault
+
+Generated from the spec design document. **Do not edit anything under `architecture/` by hand** — edit the design document and regenerate (`python3 scripts/gen_vault_docs.py`).
+
+**Start here:** [[the-anatomy-of-an-agent-read-this-before-2-1|The Anatomy of an Agent]] lays out agent, skills, loading, execution, and tools in one pass.
+
+## Guiding principles (invariants)
+
+- [[P1|P1 — KV-cache hit rate is the north-star cost metric.]]
+- [[P10|P10 — No self-modifying behaviour without an eval gate.]]
+- [[P11|P11 — Working memory and knowledge retrieval are different subsystems.]]
+- [[P12|P12 — Capability is added by skills and tools, not by arbitrary pipeline configuration.]]
+- [[P13|P13 — Storage is tiered by access pattern.]]
+- [[P14|P14 — Delivery is phased.]]
+- [[P15|P15 — Extension follows a strict ladder: skill → tool → sub-graph.]]
+- [[P16|P16 — Local first; the environment is a config choice, never a code path.]]
+- [[P2|P2 — Append-only, stable-prefix context.]]
+- [[P3|P3 — Tools are stable; capability is gated by masking, not mutation.]]
+- [[P4|P4 — External memory over lossy summarization.]]
+- [[P5|P5 — Context isolation is why multi-agent works.]]
+- [[P6|P6 — Failures are always durably recorded; only a distilled lesson is carried into a retry context.]]
+- [[P7|P7 — Guardrails are a pipeline, not a detector.]]
+- [[P8|P8 — Observability is the substrate for everything.]]
+- [[P9|P9 — Loop first, graph last.]]
+
+## Architecture decisions
+
+- [[ADR-001-layered-architecture-instead-of-one-flat-langgraph-graph|ADR-001: Layered architecture instead of one flat LangGraph graph]]
+- [[ADR-002-hierarchical-planner-executor-sub-agents-with-context-isolation|ADR-002: Hierarchical planner/executor sub-agents with context isolation]]
+- [[ADR-002b-capability-extension-via-skills-with-progressive-disclosure|ADR-002b: Capability extension via Skills with progressive disclosure]]
+- [[ADR-003-mcp-gateway-fronting-isolated-tool-server-pools|ADR-003: MCP gateway fronting isolated tool-server pools]]
+- [[ADR-004-kv-cache-first-prompt-assembly|ADR-004: KV-cache-first prompt assembly]]
+- [[ADR-005-tool-masking-logit-allowlist-instead-of-dynamic-add-remove|ADR-005: Tool masking (logit/allowlist) instead of dynamic add/remove]]
+- [[ADR-006-restorable-compression-with-filesystem-object-store-as-external|ADR-006: Restorable compression with filesystem/object store as external memory]]
+- [[ADR-006b-observation-variation-is-allowed-only-after-the-cache-breakpoint|ADR-006b: Observation variation is allowed only after the cache breakpoint]]
+- [[ADR-006c-pre-compaction-memory-flush-let-the-agent-save-what-matters|ADR-006c: Pre-compaction memory flush — let the agent save what matters before you compact]]
+- [[ADR-006d-silent-turns-agent-turns-whose-output-is-never-delivered|ADR-006d: Silent turns — agent turns whose output is never delivered]]
+- [[ADR-007-hybrid-rag-graphrag-retrieval|ADR-007: Hybrid RAG + GraphRAG retrieval]]
+- [[ADR-008-continuous-improvement-as-two-distinct-tracks-behaviour-tuning|ADR-008: Continuous improvement as two distinct tracks — behaviour tuning now, weight training later]]
+- [[ADR-009-guardrail-pipeline-pii-strategy-delivered-in-two-stages|ADR-009: Guardrail pipeline + PII strategy, delivered in two stages]]
+- [[ADR-010-multi-tenancy-and-a-three-check-authorization-model-split|ADR-010: Multi-tenancy, and a three-check authorization model split across two gateways]]
+- [[ADR-011-one-provider-aws-bedrock-behind-a-model-proxy-task-routing-is-a|ADR-011: One provider (AWS Bedrock) behind a model proxy; task routing is a later config change]]
+- [[ADR-012-one-agentic-loop-is-the-default-unit-declarative-graphs-require|ADR-012: One agentic loop is the default unit; declarative graphs require justification]]
+- [[ADR-013-classification-is-one-bedrock-model-call-made-safe-by|ADR-013: Classification is one Bedrock model call, made safe by recoverability rather than accuracy]]
+- [[ADR-014-prompt-and-policy-artifacts-are-versioned-immutable-and-canaried|ADR-014: Prompt and policy artifacts are versioned, immutable, and canaried]]
+- [[ADR-015-terraform-owns-infrastructure-a-narrow-typed-config-owns-only|ADR-015: Terraform owns infrastructure; a narrow typed config owns only chunking and embeddings; everything else is code]]
+- [[ADR-016-tiered-session-storage-sandbox-nvme-s3-express-one-zone-s3|ADR-016: Tiered session storage — sandbox NVMe, S3 Express One Zone, S3 Standard, Redis]]
+- [[ADR-017-phased-delivery-one-thin-vertical-slice-then-widen|ADR-017: Phased delivery — one thin vertical slice, then widen]]
+- [[ADR-018-kubernetes-is-the-eventual-deployment-target-not-yet-active|ADR-018: Kubernetes is the eventual deployment target (not yet active)]]
+- [[ADR-019-local-first-development-on-docker-compose-cloud-deferred-behind|ADR-019: Local-first development on Docker Compose; cloud deferred behind an explicit checkpoint]]
+- [[ADR-020-the-initial-aws-dependency-set-iam-bedrock-cognito-agentcore|ADR-020: The initial AWS dependency set — IAM, Bedrock, Cognito, AgentCore Gateway, and AgentCore Memory scoped to user preferences only]]
+
+## Sections
+
+- [[2-1-component-diagram|2.1 Component Diagram]]
+- [[2-10-context-engineering-session-filesystem-and-storage-tiers|2.10 Context Engineering: Session Filesystem and Storage Tiers]]
+- [[2-11-ownership-boundaries-terraform-vs-code-vs-config|2.11 Ownership Boundaries: Terraform vs Code vs Config]]
+- [[2-12-capability-extension-ladder|2.12 Capability Extension Ladder]]
+- [[2-13-retry-recovery-and-failure-scoping|2.13 Retry, Recovery, and Failure Scoping]]
+- [[2-2-layer-responsibilities|2.2 Layer Responsibilities]]
+- [[2-3-request-flow-high-level|2.3 Request Flow (High-Level)]]
+- [[2-4-human-in-the-loop-flow|2.4 Human-in-the-Loop Flow]]
+- [[2-5-failures-escalations-flow|2.5 Failures & Escalations Flow]]
+- [[2-6-guardrails-strategy|2.6 Guardrails Strategy]]
+- [[2-7-pii-masking-strategy-final-phase-target-design-with-the-phase-1|2.7 PII Masking Strategy (final-phase target design, with the Phase-1 interim state)]]
+- [[2-8-operational-failure-modes-designed-for-not-discovered-later|2.8 Operational Failure Modes (designed-for, not discovered later)]]
+- [[2-9-continuous-improvement-flow-track-a-track-b|2.9 Continuous Improvement Flow (Track A / Track B)]]
+- [[3-1-core-data-contracts|3.1 Core Data Contracts]]
+- [[3-2-access-policies-user-authentication-agent-authentication-and|3.2 Access Policies: User Authentication, Agent Authentication, and Tool Authorization]]
+- [[3-3-how-systems-interact|3.3 How Systems Interact]]
+- [[3-4-end-to-end-walkthrough-of-a-single-request|3.4 End-to-End Walkthrough of a Single Request]]
+- [[3-5-context-compaction-points-summary|3.5 Context Compaction Points (summary)]]
+- [[3-6-document-sync-ingestion-config-and-the-retrieval-accuracy|3.6 Document Sync, Ingestion Config, and the Retrieval Accuracy Harness]]
+- [[3-7-key-function-signatures|3.7 Key Function Signatures]]
+- [[3-8-adding-and-evolving-tools|3.8 Adding and Evolving Tools]]
+- [[3-9-data-source-contract-legislation-gov-uk-endpoints-responses-and|3.9 Data Source Contract: legislation.gov.uk Endpoints, Responses, and Storage]]
+- [[4-1-service-selection-with-rationale-and-tradeoffs|4.1 Service selection with rationale and tradeoffs]]
+- [[4-2-the-known-local-cloud-gap-table|4.2 The known local/cloud gap table]]
+- [[4-3-local-compose-topology|4.3 Local Compose topology]]
+- [[4-4-local-ci-the-only-three-gates|4.4 Local CI — the only three gates]]
+- [[5-1-deployment-topology|5.1 Deployment Topology]]
+- [[5-2-environments-and-promotion|5.2 Environments and Promotion]]
+- [[5-3-evaluation-with-langsmith|5.3 Evaluation with LangSmith]]
+- [[5-4-automated-testing-with-deepeval|5.4 Automated Testing with DeepEval]]
+- [[5-5-github-actions-ci-cd|5.5 GitHub Actions CI/CD]]
+- [[5-6-observability-metrics-first-class-not-incidental|5.6 Observability Metrics (first-class, not incidental)]]
+- [[5-7-scaling-and-service-management|5.7 Scaling and Service Management]]
+- [[6-1-why-the-mega-graph-stops-scaling|6.1 Why the Mega-Graph Stops Scaling]]
+- [[6-2-the-corrected-shape|6.2 The Corrected Shape]]
+- [[6-3-migration-path|6.3 Migration Path]]
+- [[7-1-this-layered-topology-is-overkill-at-small-scale|7.1 This layered topology is overkill at small scale]]
+- [[7-10-deferring-the-self-hosted-pii-stack-is-an-accepted-risk-with|7.10 Deferring the self-hosted PII stack is an accepted risk with regulatory teeth]]
+- [[7-11-local-first-defers-validation-so-the-scaling-and-isolation|7.11 Local-first defers validation, so the scaling and isolation designs stay unproven for longer]]
+- [[7-12-we-borrowed-openclaw-s-compaction-mechanics-and-deliberately|7.12 We borrowed OpenClaw's compaction mechanics and deliberately rejected its state topology]]
+- [[7-2-graph-engineering-is-substantially-a-rebrand|7.2 "Graph engineering" is substantially a rebrand]]
+- [[7-3-reflective-prompt-optimization-can-make-things-worse|7.3 Reflective prompt optimization can make things worse]]
+- [[7-4-two-retrieval-systems-is-a-real-operational-cost|7.4 Two retrieval systems is a real operational cost]]
+- [[7-5-guardrails-add-latency-and-false-positives|7.5 Guardrails add latency and false positives]]
+- [[7-6-track-a-weight-training-may-never-be-worth-it|7.6 Track A (weight training) may never be worth it]]
+- [[7-7-multi-tenancy-on-shared-infrastructure-is-a-permanent-obligation|7.7 Multi-tenancy on shared infrastructure is a permanent obligation]]
+- [[7-8-the-stable-prefix-discipline-fights-normal-development|7.8 The stable-prefix discipline fights normal development]]
+- [[7-9-skills-trade-node-sprawl-for-skill-sprawl-and-skill-sprawl-is-a|7.9 Skills trade node sprawl for skill sprawl, and skill sprawl is a real failure mode]]
+
+## Topics
+
+- [[capability-phase-matrix|Capability → Phase Matrix]]
+- [[cloud-post-checkpoint|Cloud (post-checkpoint)]]
+- [[cloud-readiness-checkpoint|Cloud Readiness Checkpoint]]
+- [[document-structure|Document Structure]]
+- [[environment-independent|Environment-independent]]
+- [[guiding-principles-invariants|Guiding Principles (Invariants)]]
+- [[local-current|Local (current)]]
+- [[research-grounding-and-attribution|Research Grounding and Attribution]]
+- [[terminology-hygiene-read-this-before-6|Terminology Hygiene (read this before §6)]]
+- [[the-anatomy-of-an-agent-read-this-before-2-1|The Anatomy of an Agent (read this before §2.1)]]
+- [[the-anchor-use-case-legislation-and-compliance-research-chatbot|The Anchor Use Case: Legislation and Compliance Research Chatbot]]
+- [[the-five-layer-cumulative-stack|The Five-Layer Cumulative Stack]]
+- [[where-the-platform-actually-runs-today|Where the Platform Actually Runs Today]]
+
+## Delivery phases
+
+- [[phase-0|Phase 0 — Local foundation and service selection]]
+- [[phase-1|Phase 1 — Thin vertical slice (the whole path, minimally)]]
+- [[phase-2|Phase 2 — Multi-tenancy, access policy, tool isolation, safety]]
+- [[phase-3|Phase 3 — Knowledge layer: document sync, hybrid retrieval, accuracy harness]]
+- [[phase-4|Phase 4 — Orchestration maturity, sub-graphs, and context depth]]
+- [[phase-5|Phase 5 — Improvement layer]]
+- [[phase-6|Phase 6 — Enhancements: the self-hosted PII stack]]
+
+## Correctness properties
+
+- [[property-1|Property 1: Tenant partition containment]]
+- [[property-10|Property 10: No raw PII crosses the provider boundary]]
+- [[property-11|Property 11: PII is tokenized in every persisted surface]]
+- [[property-12|Property 12: Failures are durably preserved, and context inclusion is scoped]]
+- [[property-13|Property 13: Exactly one terminal trajectory per request]]
+- [[property-14|Property 14: Failure containment across pools]]
+- [[property-15|Property 15: Session write serialization]]
+- [[property-16|Property 16: Gated promotion and pointer rollback]]
+- [[property-17|Property 17: Ingestion config validation is narrow, total, and fail-closed]]
+- [[property-18|Property 18: A skill can never widen an agent's access]]
+- [[property-19|Property 19: *(removed)*]]
+- [[property-2|Property 2: Authorization independent of masking]]
+- [[property-20|Property 20: Every referenced artifact resides in a resolvable tier]]
+- [[property-21|Property 21: Session resume from manifest]]
+- [[property-22|Property 22: Identical failures terminate]]
+- [[property-23|Property 23: A re-attempt context contains a lesson, not a trajectory]]
+- [[property-24|Property 24: Sub-graph invocation depth is bounded and enforced before any model call]]
+- [[property-25|Property 25: The skill index is bounded and each of the three skill levels stays in its own region]]
+- [[property-26|Property 26: Tool sets and skill indexes are pinned per session and versioned across sessions]]
+- [[property-27|Property 27: No compaction boundary separates a tool call from its result]]
+- [[property-28|Property 28: A memory flush completes before the compaction entry is written]]
+- [[property-29|Property 29: A silent turn delivers nothing, on either path]]
+- [[property-3|Property 3: Default deny and deny precedence]]
+- [[property-30|Property 30: Inherited context is size-capped regardless of the complexity flag]]
+- [[property-31|Property 31: System-generated events do not extend session freshness]]
+- [[property-32|Property 32: A tool call carries both identities, and access is their intersection]]
+- [[property-33|Property 33: Nothing unredacted or cross-tenant reaches managed memory]]
+- [[property-34|Property 34: Every legislative answer is version-pinned, or refused]]
+- [[property-35|Property 35: An effects publication replaces the effect set; it never merges into it]]
+- [[property-36|Property 36: A missing edge never reads as an absent amendment]]
+- [[property-4|Property 4: Stable-prefix invariance within a session]]
+- [[property-5|Property 5: Tool definitions constant, only masks vary]]
+- [[property-6|Property 6: History is append-only]]
+- [[property-7|Property 7: Nothing is dropped without a path back]]
+- [[property-8|Property 8: Compaction preserves the cached prefix]]
+- [[property-9|Property 9: Offload round-trip fidelity]]
+
+## Document hubs
+
+- [[1-architecture-decisions-adrs|1. Architecture Decisions (ADRs)]]
+- [[3-low-level-architecture|3. Low-Level Architecture]]
+- [[4-service-selection-and-local-first-development|4. Service Selection and Local-First Development]]
+- [[5-aws-deployment-evaluation|5. AWS Deployment & Evaluation]]
+- [[6-correcting-the-current-langgraph-architecture|6. Correcting the Current LangGraph Architecture]]
+- [[7-honest-tradeoffs-counterarguments|7. Honest Tradeoffs & Counterarguments]]
+- [[8-phased-delivery-plan|8. Phased Delivery Plan]]
+- [[architecture|Architecture]]
+- [[components-and-interfaces|Components and Interfaces]]
+- [[correctness-properties|Correctness Properties]]
+- [[data-models|Data Models]]
+- [[dependencies|Dependencies]]
+- [[error-handling|Error Handling]]
+- [[overview|Overview]]
+- [[references|References]]
+- [[testing-strategy|Testing Strategy]]
+
+## Not generated here
+
+- [[agent-tuning-loop]] — hand-authored; analyses an externally provided reference image, which has no source in the design document.
+- `assets/` — binary source material. Never touched by any generator.
+- A code map (`code/`) arrives with `scripts/gen_vault_code.py` once there is a source tree to map. There is no application code yet.

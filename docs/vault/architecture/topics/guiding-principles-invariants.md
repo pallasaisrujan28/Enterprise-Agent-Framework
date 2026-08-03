@@ -1,0 +1,30 @@
+---
+title: "Guiding Principles (Invariants)"
+type: topic
+tags: [topic]
+source: .kiro/specs/enterprise-agent-framework/design.md
+generated: 2026-07-31T20:03:07+00:00
+---
+
+# Guiding Principles (Invariants)
+
+Part of [[overview|Overview]].
+
+These principles are referenced throughout the document and MUST hold across all future changes:
+
+- **[[P1]] — KV-cache hit rate is the north-star cost metric.** Cached vs uncached input tokens differ by roughly an order of magnitude. Every prompt-assembly decision optimizes for cache reuse.
+- **[[P2]] — Append-only, stable-prefix context.** The stable prefix (system prompt, tool definitions, few-shot) never mutates within a session; volatile content is appended at the tail. No per-second timestamps in the prefix. Deterministic JSON key ordering.
+- **[[P3]] — Tools are stable; capability is gated by masking, not mutation.** Never dynamically add/remove tool definitions at runtime. Use logit/allowlist masking per state. Consistent tool-name prefixes (`browser_*`, `db_*`, `file_*`) so a family masks with one prefix. Core toolset stays small (~<20 atomic tools).
+- **[[P4]] — External memory over lossy summarization.** Large tool outputs are offloaded to an object store / filesystem; context keeps only a restorable reference (path/URL). The agent re-fetches on demand.
+- **[[P5]] — Context isolation is why multi-agent works.** Sub-agents receive clean context windows and minimal handoffs; results return through a structured submit-results tool with constrained decoding.
+- **[[P6]] — Failures are always durably recorded; only a distilled lesson is carried into a retry context.** Three scopes, three behaviours: retrying the *same step* keeps the error **verbatim** in context (the model needs the exact failure to fix the call); re-attempting the *task* spawns a fresh executor with a clean context carrying a **distilled failure lesson**, not accumulated failed trajectories; re-*planning* gives the planner a failure **summary**, never the raw trajectory. Failures are never silently swallowed — they are always preserved in the durable trajectory record for evals, audit, and RL — but "keep errors in context" is not a licence to accumulate wreckage across attempts ([[§2.13]]). PII is still masked at every scope.
+- **[[P7]] — Guardrails are a pipeline, not a detector.** Input rails run pre-LLM; output rails run post-LLM; retrieved content is also scanned. PII is redacted before data leaves the corporate boundary.
+- **[[P8]] — Observability is the substrate for everything.** Trajectory logging, token accounting, KV-cache hit rate, and distributed tracing are first-class. RL and evaluation are built on top of this data.
+- **[[P9]] — Loop first, graph last.** The default unit of work is one agentic loop with a goal and a quality bar. A declarative graph is added only when the work forces it (distinct specialties, per-step model/toolset differences, fan-out/fan-in, auditable routing, failure isolation, read-only review). Many thin nodes that could collapse into one loop is an anti-pattern.
+- **[[P10]] — No self-modifying behaviour without an eval gate.** Automated prompt/behaviour optimization is versioned, threshold-gated, canaried, and rollback-able. Nothing auto-applies to production.
+- **[[P11]] — Working memory and knowledge retrieval are different subsystems.** The sandbox filesystem/object store is agent *working memory*; RAG/GraphRAG is *enterprise knowledge retrieval*. They are never conflated or merged into one abstraction.
+- **[[P12]] — Capability is added by skills and tools, not by arbitrary pipeline configuration.** A new *procedure* over existing tools is a **skill** — a versioned artifact with a manifest, a body, and its own eval cases, and no platform code. A new way to *touch the outside world* is a **tool**, shipped as an MCP server; the only code is inside that server. Infrastructure (vector store, graph store, buckets, indexes) is owned by whatever declaratively owns resource lifecycle in the environment — **Docker Compose locally, Terraform in cloud** ([[ADR-019]], [[§2.11]]) — never by config files. The narrow typed config surface that remains covers chunking and embeddings only. Everything else is code.
+- **[[P15]] — Extension follows a strict ladder: skill → tool → sub-graph.** Try them in that order and stop at the first that works. Skills cost a folder; tools cost code in one MCP server; a sub-graph costs code plus a justification against the [[ADR-012]] forcing functions. A sub-graph is invoked by the parent **as a tool**, so capability scale never grows the parent's topology ([[§2.12]]).
+- **[[P13]] — Storage is tiered by access pattern.** POSIX scratch, session-durable objects, cheap archive, and hot state are four different jobs and four different stores. No single store is asked to do all four.
+- **[[P14]] — Delivery is phased.** Every capability carries a phase assignment ([[§8]]). A thin vertical slice through all layers precedes a complete build of any layer.
+- **[[P16]] — Local first; the environment is a config choice, never a code path.** The platform develops on Docker Compose with pinned images for every backing service, and cloud infrastructure is earned at an explicit checkpoint rather than assumed ([[ADR-019]], [[§4]]). **One exemption, and only one: the model provider.** All model calls go to AWS Bedrock in every environment including local, because CPU inference on a laptop distorts latency measurement and no frontier-class model runs locally anyway ([[ADR-011]]). The *interface* rule still holds — code calls the model proxy, never a provider SDK — so this exempts the deployment rule, not the seam. Application code never knows which environment it is in: every backing service sits behind an interface whose implementation is selected by config, so swapping a local image for a managed service is **a config change and never a code change**. Anything reachable only through one vendor's API is a migration cliff and needs its own ADR accepting the lock-in.
