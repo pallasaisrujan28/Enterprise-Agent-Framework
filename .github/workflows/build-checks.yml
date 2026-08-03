@@ -1,0 +1,110 @@
+# The build gate, ported from the ai-chat-infrastructure Bitbucket pipeline.
+#
+# Deliberately ONE job. The source pipeline has build/deploy/guardrails/e2e/
+# kb-accuracy/publish steps because it has an image to build, a stack to deploy
+# into, and a knowledge base to test against. We have none of those yet, and a
+# stage that deploys nothing is maintenance without a benefit. Each of those
+# steps arrives here with the thing it protects — the growth path is at the
+# bottom of this file.
+#
+# What this runs is exactly `make buildchecks`, i.e. ./build-checks.sh, which is
+# also what a developer runs locally. "It passed on my machine" and "it passed
+# in CI" therefore mean the same thing, which is the whole reason the checks
+# live in a script rather than inline YAML here.
+
+name: Build Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: # the equivalent of Bitbucket's `trigger: manual`
+
+# A force-push should not leave the previous run burning minutes on a commit
+# nobody is waiting for. main is excluded: those runs are the record of what
+# actually landed and should not be cancelled by the next merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+  # No `id-token: write` yet. It is added when a step first needs to assume an
+  # AWS role — granting it before then hands the workflow a capability with no
+  # consumer.
+
+jobs:
+  build-checks:
+    name: Build Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # build-checks.sh switches to `uv run python` when CI is set, because
+      # there is no .venv to activate on a runner.
+      CI: "true"
+
+    steps:
+      # Actions are pinned to a commit SHA, not a tag. A tag is mutable, so
+      # `@v7` is a promise from whoever can move that tag — which is the
+      # supply-chain hole the dependency pinning policy in build-checks.sh
+      # exists to close. The comment records which release the SHA was.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # Replaces the pipeline's `caches: [pip]`. Keyed on uv.lock, so the
+          # cache is only reused when the resolved dependency set is identical.
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        # `--frozen` fails if uv.lock disagrees with pyproject.toml instead of
+        # quietly re-resolving. CI must build what the lock says, otherwise the
+        # lock is decoration and CI is testing a different dependency set from
+        # the one that was reviewed.
+        run: uv sync --all-extras --frozen
+
+      - name: Build checks
+        # pip-audit, ruff check, ruff format, mypy, pytest, coverage floor.
+        run: make buildchecks
+
+      - name: Upload test reports
+        # Mirrors `artifacts: paths: [test-reports/**]`. Runs on failure too —
+        # a red build is exactly when the junit XML and coverage are wanted.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-reports
+          path: |
+            test-reports/
+            coverage.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+# ---------------------------------------------------------------------------
+# GROWTH PATH — what the source pipeline has that we do not, and what has to
+# exist before each one is worth adding. Recorded so the gaps are deliberate
+# rather than forgotten.
+#
+#   Docker build + ECR push   needs a Dockerfile and something that runs the
+#                             image. Nothing is deployed yet.
+#   Deploy (dev/test/prod)    needs the Terraform stack and an OIDC role.
+#                             Brings `permissions: id-token: write`, GitHub
+#                             Environments for approval, and the stack-output
+#                             exports the Bitbucket steps do inline.
+#   Guardrails tests          needs a Bedrock guardrail to test against.
+#   E2E / DeepEval            needs a deployed stack and a live model. These
+#                             cost money per run, so they belong on main and
+#                             manual dispatch, not on every PR.
+#   KB accuracy / sync-kb     needs a knowledge base and a document corpus.
+#   prune-guardrail-versions  needs guardrail versions to prune (Bedrock caps
+#                             at 20).
+#   Vault drift check         `python3 scripts/gen_vault_docs.py --check`.
+#                             Cheap and ready — held back only because the
+#                             design document is still moving daily and a
+#                             failing docs gate on every commit would train
+#                             everyone to ignore it.
+# ---------------------------------------------------------------------------
