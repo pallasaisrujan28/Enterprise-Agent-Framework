@@ -1,0 +1,29 @@
+# Obsidian per-user workspace state. Opening docs/vault as a vault creates this,
+# and it churns on every pane move — it is not a shared artifact.
+# Note: .obsidian/ is NOT the vault content. The vault content is the generated
+# markdown under docs/vault, which IS committed (see .kiro/steering/obsidian-vault.md).
+.obsidian/
+.obsidian-*/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Build-check artefacts. uv.lock IS committed — it pins exact resolved versions
+# and hashes, which is the whole point of having a lock.
+coverage.xml
+.coverage
+test-reports/
+
+# Local environment — never commit secrets
+.env
+.env.*
+!.env.example
