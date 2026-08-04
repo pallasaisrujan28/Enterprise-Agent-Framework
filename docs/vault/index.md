@@ -3,7 +3,7 @@ title: "Architecture Vault"
 type: index
 tags: [index]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-08-01T14:18:45+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # Enterprise Agent Framework — Architecture Vault
@@ -57,6 +57,7 @@ Generated from the spec design document. **Do not edit anything under `architect
 - [[ADR-018-kubernetes-is-the-eventual-deployment-target-not-yet-active|ADR-018: Kubernetes is the eventual deployment target (not yet active)]]
 - [[ADR-019-local-first-development-on-docker-compose-cloud-deferred-behind|ADR-019: Local-first development on Docker Compose; cloud deferred behind an explicit checkpoint]]
 - [[ADR-020-the-initial-aws-dependency-set-iam-bedrock-cognito-agentcore|ADR-020: The initial AWS dependency set — IAM, Bedrock, Cognito, AgentCore Gateway, and AgentCore Memory scoped to user preferences only]]
+- [[ADR-021-tools-are-reached-only-through-the-mcp-gateway-and-tool|ADR-021: Tools are reached only through the MCP gateway, and tool selection is semantic search]]
 
 ## Sections
 

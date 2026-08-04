@@ -4,7 +4,7 @@ type: section
 tags: [section]
 aliases: ["§2.1"]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-07-31T23:15:35+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # 2.1 Component Diagram
@@ -35,7 +35,7 @@ graph TD
         PLANNER[Planner Sub-agent - todo.md recitation]
         SESSION[(Session Cache - Redis)]
         PROMPT[KV-cache-first Prompt Assembler<br/>+ skill index in stable prefix]
-        SKILLLOAD[Skill Loader - progressive disclosure<br/>body into volatile tail on demand]
+        SKILLENG[Skills Engine - ADR-002b<br/>validate + refuse the unenforceable<br/>build pinned index - progressive disclosure<br/>body into volatile tail on demand]
         MODELPROXY[Model Proxy - routing, prompt cache, PII redaction]
         DISPATCH[Tool Dispatch]
         COMPACT[Restorable Compaction / Anchored Summary]
@@ -88,7 +88,7 @@ graph TD
     UI --> AUTH --> SCHEMA --> OPA --> RATE --> INRAIL --> CLS
     CLS --> PLANNER --> PROMPT
     PLANNER --> EXEC
-    SKILLLOAD --> PROMPT
+    SKILLENG --> PROMPT
     PROMPT --> MODELPROXY
     EXEC --> DISPATCH --> MCPGW
     EXEC -. invoke sub-graph AS A TOOL .-> SUBG
@@ -118,6 +118,6 @@ graph TD
     RL -. gated promotion .-> REGART
     EVAL -. skill eval gate .-> SKILLREG
     REGART -. resolves prompts/policies .-> PROMPT
-    SKILLREG -. resolves skill index + bodies .-> SKILLLOAD
+    SKILLREG -. serves versioned artifacts - promotion boundary only .-> SKILLENG
     REGART -. resolves policies .-> OPA
 ```

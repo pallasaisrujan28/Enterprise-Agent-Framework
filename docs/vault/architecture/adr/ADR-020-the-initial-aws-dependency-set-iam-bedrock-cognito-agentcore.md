@@ -4,7 +4,7 @@ type: adr
 tags: [adr]
 aliases: ["ADR-020"]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-07-31T23:40:59+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # ADR-020: The initial AWS dependency set — IAM, Bedrock, Cognito, AgentCore Gateway, and AgentCore Memory scoped to user preferences only
@@ -114,6 +114,3 @@ Long-term memory runs [extraction strategies](https://docs.aws.amazon.com/bedroc
 - **One gateway per tenant, each trusting that tenant's own IdP directly** — rejected. It removes the need for federation, and it pays for that with N gateways to provision, N target registrations, N tool-catalog wirings, and a quota ceiling on tenant count — while fragmenting the single tool chokepoint [[ADR-003]] and [[ADR-010]] are built around. Federating behind one issuer keeps tenant onboarding a configuration change.
 - **Passing each tenant's raw claims straight through to policy evaluation** — rejected. Without Cognito's attribute mapping normalizing claims into one `UserPrincipal` shape, every tenant's claim naming leaks into the authorization path, and [[Property 32]] would need per-tenant claim-parsing code. That is a per-tenant code path in the security-critical layer, which is the worst place to have one.
 - **Fixture JWTs instead of real Cognito users** — rejected. It tests that our validation code runs, not that it validates real claims, and claim-shape mismatches are a classic integration failure.
-
-> **Note on tech choices.** **Kubernetes remains a decided constraint rather than a substitutable default** ([[ADR-018]]) — but it is the **eventual** target and is **not yet active** ([[ADR-019]]). The current runtime is Docker Compose. Everything else named later (Envoy, OPA, Redis, LiteLLM-style proxy, Neo4j, OpenSearch/pgvector, LangSmith, DeepEval, GitHub Actions, and the specific autoscaling components in [[§5.7]]) is a **reasonable, model-agnostic default** rather than a hard requirement — and each one now carries a recorded selection rationale and tradeoff in [[§4.1]] rather than appearing as an unexplained product name. The ADRs above constrain the *shape* of the system; substitutable products may be swapped if they satisfy the same principles.
----

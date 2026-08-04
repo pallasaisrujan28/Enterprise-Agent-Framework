@@ -3,7 +3,7 @@ title: "Data Models"
 type: hub
 tags: [hub, model-routing]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-07-31T18:43:44+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # Data Models
@@ -20,7 +20,7 @@ Every contract is defined in [[§3.1]]; this is the index plus the two persisten
 | `RetrievalQuery`, `RetrievalResult` | [[§3.1]].6 | Executors → Knowledge Layer |
 | `TrajectoryRecord`, `TokenLedger`, `RoutingDecision`, `AttemptRecord` | [[§3.1]].7 | Everything → Observability (and the cascade training set) |
 | `FailureLesson` | [[§3.1]].9 | Retry scoping → fresh executor (scope 2) |
-| `SkillManifest`, `BundledResources`, `Skill` | [[ADR-002b]] | Skill Registry → Prompt Assembler (L1) / Skill Loader (L2) / Sandbox (L3 scripts) |
+| `SkillManifest`, `BundledResources`, `Skill` | [[ADR-002b]] | Skill Registry → Skills Engine → Prompt Assembler (L1) / volatile tail (L2) / Sandbox (L3 scripts) |
 | `SkillIndexVersion`, `ToolCatalogVersion`, `McpServerRef` | [[§3.1]].10 | Artifact registry → session pinning → prompt prefix |
 | `TranscriptEntry`, `CompactionEntry` | [[§3.1]].11 | Session history (tree) ↔ Compaction Worker ↔ replay, evals, forks |
 | `TenantPolicyBundle`, `AgentPolicy`, `ToolGrant`, `ArgConstraint` | [[§3.2]].1 | Policy Store → PDP |

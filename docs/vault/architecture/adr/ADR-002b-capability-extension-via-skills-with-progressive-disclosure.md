@@ -4,7 +4,7 @@ type: adr
 tags: [adr, skills]
 aliases: ["ADR-002b"]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-07-31T18:43:44+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # ADR-002b: Capability extension via Skills with progressive disclosure
@@ -103,6 +103,16 @@ flowchart TB
 Two consequences worth stating plainly, because both were mis-stated in an earlier draft of this design:
 
 - **Skill selection is not a semantic retrieval step by default.** The model sees every Level-1 index line in the prefix and picks from them the way it picks a tool. There is no embedding lookup in the common path. `skill_search` is the exception that arrives only past the index ceiling ([[§7.9]]), and it exists because the flat index stopped being affordable, not because search is better.
+
+  **Why skills resist retrieval where tools accept it, which is not a symmetry this design assumed at first.** Semantic tool search was adopted deliberately ([[ADR-021]]) on evidence that large static catalogs degrade selection accuracy. That reasoning does *not* transfer to skills, for three reasons:
+
+  1. **The cost is already gone.** A tool spec is a JSON schema and cannot be compressed to one line; a skill's resident footprint is already one line at ≈100 tokens. Progressive disclosure did the work retrieval would be doing. Searching the index optimises the cheap half — 5,000 tokens at 50 skills — while the expensive half is already deferred.
+  2. **The failure is silent rather than loud.** A missed tool announces itself: the model reports it cannot do the thing, or calls the wrong tool and gets a wrong-shaped result. A missed skill produces a fluent answer from general knowledge with the procedure simply absent. Retrieval is acceptable where recall misses are visible and dangerous where they are not.
+  3. **It would put a probabilistic step in front of enforcement.** The gate checks the obligations of **triggered** skills only — correctly, since a skill whose guidance never entered the prompt has no business blocking an answer ([[§3.1]].10). But that means if retrieval decides which skills are even *candidates*, a recall miss does not raise a violation: the obligation was never evaluated, and nothing records that it wasn't. With a flat index the model can still fail to *select* a skill, but the candidate set is complete and the miss is detectable in eval. With retrieval the skill was never in the room. An unenforced obligation nobody can detect is the same failure the loader refuses files to prevent.
+
+  **The lever to reach for before retrieval is deterministic partition.** Skills are granted per agent, tenant and role by policy, which already filters the index — the same token reduction with zero recall risk and a prefix that stays byte-stable per agent. Prefer a partition that can be proven over a ranking that can only be measured.
+
+  **If the ceiling is genuinely reached, `skill_search` is two-tier, not all-or-nothing.** A skill declares whether it is retrievable. Compliance-critical skills — the ones whose absence fails silently — stay resident in the index unconditionally; only the long tail becomes searchable. The flag is validated at load like every other manifest field, so "this skill must always be visible" is enforced rather than remembered.
 - **The cache is a property of the bytes, not of the conversation.** A busy agent stays warm because many sessions share one prefix; an idle session goes cold on provider TTL regardless of how important it is. Cost models built on "the session is cached" are wrong; the right unit is the prefix.
 
 **Structure of a skill.**
@@ -136,7 +146,20 @@ END STRUCTURE
 
 > Content from the Agent Skills loading-system specification was rephrased for compliance with licensing restrictions.
 
-**Validation at load (fail closed).** Two checks are non-negotiable:
+**Two components, not one: the Skills Engine and the Skill Registry.** Recorded because an earlier draft used one name for both and the ambiguity reached the code, where the package holding the machinery and the directory holding the artifacts were both called `skills`. They are separate concerns with **different lifetimes**, and the split is the reason the name is now explicit in both places.
+
+| | **Skills Engine** | **Skill Registry** |
+| --- | --- | --- |
+| What it is | In-process machinery: parse, validate, build the index, refuse the unenforceable, hand obligations to the gate | Storage and promotion pipeline: where versioned skill artifacts live and how they reach an agent |
+| Lives at | `agent/skills_engine/` — code | `skills/**` as source of truth, promoted artifacts under [[ADR-014]] |
+| Operations | `load_skill`, `load_skillset`, `build_skill_index`, `validate_against_catalog`, `validate_scopes`, `load_skill_body`, `run_skill_script` | version, canary, grant by policy, eval-gate, roll back by pointer, `skill_search` past the ceiling |
+| Runs | **Every session** — at start to build the pinned index, and on every trigger to load a body | **At a promotion boundary** — never in the request path |
+| Fails by | Refusing to load. A skill that cannot be enforced never reaches an agent | Refusing to promote. A skill whose eval cases regress does not ship |
+| Built | Yes — the loader, the obligation checks, and the gate exist | Not yet; [[Phase 3]]–4 |
+
+The boundary is worth holding because the failure modes are different and land on different people. An Engine defect is a **runtime** fault in the request path — a skill silently not enforced, which is the one outcome this whole ADR exists to prevent. A Registry defect is a **release** fault — the wrong version of a correct skill reaching an agent, caught by canary and undone by pointer rollback ([[ADR-014]]). Collapsing them into one component means one blast radius, one on-call story, and one version number for two things that change at wildly different rates.
+
+**Validation at load (fail closed).** Two checks are non-negotiable, and both are the **Engine's** job, not the Registry's — they must hold at load in the request path, not merely at promotion time, because the pinned tool catalog can change underneath a skill that was valid when it shipped:
 1. Every `required_tools` entry resolves in the pinned tool catalog version. A skill referencing a tool that does not exist never loads.
 2. Every `required_scopes` entry is within the agent's effective policy grants. **A skill can never widen access** — it can only narrow or use what the agent already has. This mirrors the policy-containment guarantee ([[Property 18]]) and is enforced at the same place, so a skill is not a side door around [[§3.2]].
 
