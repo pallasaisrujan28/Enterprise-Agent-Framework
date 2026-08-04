@@ -25,8 +25,8 @@ from pathlib import Path
 
 import yaml
 
-from eaf.rules import obligations as ob_lib
-from eaf.rules.model import (
+from agent.rules import obligations as ob_lib
+from agent.rules.model import (
     MAX_DESCRIPTION_CHARS,
     MODE_ENFORCE,
     MODES,

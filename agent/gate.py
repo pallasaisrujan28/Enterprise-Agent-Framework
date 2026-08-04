@@ -21,8 +21,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from eaf.rules import obligations as ob_lib
-from eaf.rules.model import Draft, Rule, Violation
+from agent.rules import obligations as ob_lib
+from agent.rules.model import Draft, Rule, Violation
 
 
 @dataclass(frozen=True)

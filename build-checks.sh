@@ -91,7 +91,7 @@ echo "Code formatting is correct."
 
 # --- Types -----------------------------------------------------------------
 echo "Running type checks with mypy..."
-$PYTHON -m mypy eaf
+$PYTHON -m mypy agent
 RC=$?
 if [[ $RC -ne 0 ]]; then
     echo "Type checking failed. Please fix type errors before committing."
@@ -103,7 +103,7 @@ echo "Type checking passed."
 echo "Running tests with coverage..."
 mkdir -p test-reports
 $PYTHON -m pytest \
-    --cov=eaf --cov-report=term --cov-report=xml \
+    --cov=agent --cov-report=term --cov-report=xml \
     --junitxml=test-reports/junit.xml
 RC=$?
 if [[ $RC -ne 0 ]]; then

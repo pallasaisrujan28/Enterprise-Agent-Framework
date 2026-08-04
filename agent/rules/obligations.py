@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from eaf.rules.model import Draft, Obligation
+from agent.rules.model import Draft, Obligation
 
 # A checker inspects a draft and returns None (holds) or a reason (violated).
 Checker = Callable[[Draft, Obligation], str | None]
