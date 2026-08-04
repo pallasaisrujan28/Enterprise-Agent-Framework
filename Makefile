@@ -14,7 +14,7 @@ test-e2e:
 	uv run python -m pytest test/e2e -v
 
 coverage:
-	uv run python -m pytest --cov=eaf --cov-report=term-missing
+	uv run python -m pytest --cov=agent --cov-report=term-missing
 
 format:
 	uv run ruff check --fix .

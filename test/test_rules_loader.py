@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from eaf.rules import RuleError, load_rule, load_ruleset
+from agent.rules import RuleError, load_rule, load_ruleset
 
 GOOD = """---
 name: demo

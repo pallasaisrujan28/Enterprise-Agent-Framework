@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from eaf.gate import evaluate
-from eaf.rules.model import Draft, Obligation, Rule
-from eaf.rules.obligations import check, known_kinds, register
+from agent.gate import evaluate
+from agent.rules.model import Draft, Obligation, Rule
+from agent.rules.obligations import check, known_kinds, register
 
 
 def _rule(*obligations: Obligation) -> Rule:

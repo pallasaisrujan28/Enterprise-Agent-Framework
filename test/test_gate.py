@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from eaf.gate import evaluate
-from eaf.rules import Draft, load_rule, load_ruleset
+from agent.gate import evaluate
+from agent.rules import Draft, load_rule, load_ruleset
 
 RULES_DIR = Path(__file__).resolve().parent.parent / "rules"
 

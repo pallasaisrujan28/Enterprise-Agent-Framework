@@ -1,5 +1,5 @@
 [project]
-name = "eaf"
+name = "agent"
 version = "0.0.1"
 description = "Enterprise Agent Framework — an agent whose behaviour is bound by published rules, not only by the model's own knowledge."
 requires-python = ">=3.11"
@@ -29,14 +29,14 @@ dev = [
 ]
 
 [project.scripts]
-eaf = "eaf.cli:main"
+agent = "agent.cli:main"
 
 [build-system]
 requires = ["hatchling>=1.25,<2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["eaf"]
+packages = ["agent"]
 
 [tool.ruff]
 line-length = 100
