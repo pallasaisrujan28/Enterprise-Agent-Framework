@@ -1,13 +1,13 @@
-"""The obligation library — the parameterised checks a rule author can use.
+"""The obligation library — the parameterised checks a skill author can use.
 
 This library is the load-bearing bet of the whole design: a domain expert must
-be able to make a rule BINDING without writing code. They pick a kind from this
-registry and fill in parameters in the rule's frontmatter.
+be able to make a skill BINDING without writing code. They pick a kind from this
+registry and fill in parameters in the skill's frontmatter.
 
-If this library cannot express ~80% of real enterprise rules, the design
-collapses back to "rules as prompt text and hope", so the set is kept small and
-deliberately generic. Adding a kind here is a platform decision, not a routine
-change — every kind is a promise we have to keep working.
+If this library cannot express ~80% of real enterprise procedures, the design
+collapses back to "guidance as prompt text and hope", so the set is kept small
+and deliberately generic. Adding a kind here is a platform decision, not a
+routine change — every kind is a promise we have to keep working.
 
 Each checker returns None when the obligation holds, or a human-readable reason
 when it does not. Checkers are pure functions of the draft: no model call, no
@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from agent.rules.model import Draft, Obligation
+from agent.skills_engine.model import Draft, Obligation
 
 # A checker inspects a draft and returns None (holds) or a reason (violated).
 Checker = Callable[[Draft, Obligation], str | None]
@@ -45,7 +45,7 @@ def known_kinds() -> tuple[str, ...]:
 def check(draft: Draft, obligation: Obligation) -> str | None:
     checker = _REGISTRY.get(obligation.kind)
     if checker is None:
-        # Fail closed. An unknown obligation kind means the rule file expects a
+        # Fail closed. An unknown obligation kind means the skill file expects a
         # guarantee this build cannot provide, and silently ignoring it would
         # hand the tenant a control that does nothing.
         return f"unknown obligation kind '{obligation.kind}'"
@@ -121,8 +121,9 @@ def _must_disclose(draft: Draft, ob: Obligation) -> str | None:
       when      fact key that triggers the requirement
       disclose  the disclosure label that must be present
 
-    Checked against structured disclosures rather than the prose, so a rule
-    cannot be satisfied by wording that merely resembles a disclosure.
+    Checked against structured disclosures rather than the prose, so an
+    obligation cannot be satisfied by wording that merely resembles a
+    disclosure.
     """
     when = ob.params.get("when")
     label = ob.params.get("disclose") or when
@@ -154,7 +155,7 @@ def _requires_approval_when(draft: Draft, ob: Obligation) -> str | None:
 
 @register("must_not_call")
 def _must_not_call(draft: Draft, ob: Obligation) -> str | None:
-    """A named tool must not be used under this rule at all.
+    """A named tool must not be used under this skill at all.
 
     params:
       tools  list of forbidden tool names

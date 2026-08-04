@@ -1,6 +1,13 @@
 ---
 name: legislation_advice
 description: Answering questions about UK statute.
+required_tools:
+  - leg_resolve_identifier
+  - leg_get_contents
+  - leg_get_provision
+  - leg_traverse_amendments
+required_scopes:
+  - legislation:read
 obligations:
   - must_cite: {contains: legislation.gov.uk, version_pinned: true}
   - must_ask_when_missing: {fields: [as_at_date]}
@@ -43,7 +50,7 @@ Any question about what UK legislation says, requires, permits or prohibits.
 - Any outstanding unapplied effects, stated plainly.
 - Where the traversal was incomplete, say that it was incomplete.
 
-## What this rule does not cover
+## What this skill does not cover
 
 Case law, HMRC or regulator practice, and anything requiring a view on how a
 court would decide. Those are a different agent's work — hand back a re-route

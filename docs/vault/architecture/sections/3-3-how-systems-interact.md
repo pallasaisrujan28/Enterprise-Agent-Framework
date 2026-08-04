@@ -4,7 +4,7 @@ type: section
 tags: [section]
 aliases: ["§3.3"]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-07-31T18:43:44+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # 3.3 How Systems Interact
@@ -15,7 +15,7 @@ Part of [[3-low-level-architecture|3. Low-Level Architecture]].
 - **Orchestrator ↔ Session Cache:** The orchestrator is stateless; all session state (history references, plan, anchored summary) is read/written to Redis keyed by `tenant_id:session_id`.
 - **Orchestrator ↔ Model Proxy:** The assembled prompt goes to the model proxy, which routes by task type ([[ADR-011]]), applies prompt caching at the cache breakpoint, and re-checks PII redaction before provider egress.
 - **Orchestrator ↔ Executors:** Handoffs are minimal for SIMPLE tasks and include trajectory + filesystem handles for COMPLEX tasks. Results return via the constrained `submit-results` tool, with `REROUTE` as a first-class outcome ([[ADR-013]]).
-- **Orchestrator ↔ Skill Registry:** At session start the orchestrator resolves the agent's granted skills into a pinned `SkillIndexVersion` whose one-line entries enter the stable prefix. During the loop, a skill **body** is fetched and appended to the volatile tail on demand — never into the prefix ([[ADR-002b]]).
+- **Orchestrator ↔ Skills Engine:** At session start the engine resolves the agent's granted skills into a pinned `SkillIndexVersion` whose one-line entries enter the stable prefix, validating each against the pinned tool catalog and the agent's scopes and refusing to load any skill it cannot enforce. During the loop, a skill **body** is fetched and appended to the volatile tail on demand — never into the prefix ([[ADR-002b]]). The **Skill Registry** supplies the versioned artifacts the engine loads and is not otherwise in the request path.
 - **Executors ↔ Sub-graph Registry:** A sub-graph is invoked **as a tool** with a `depth` counter; dispatch rejects invocations past the depth limit before any model call. The sub-graph runs on its own stable prefix and its own isolated context and returns through the same `submit_results` contract ([[§2.12]].1).
 - **Retry scoping ↔ Executors:** A scope-2 re-attempt is a **new** executor with a clean context carrying only a `FailureLesson`; the failed attempt's full trajectory stays addressable in T2 and is not read by the retrying model ([[§2.13]]).
 - **Dispatch ↔ MCP Gateway ↔ Pools:** Dispatch sends a `ToolCall` with propagated trace context; the MCP gateway validates schema, re-checks the allowlist, resolves `tool → pool` via the registry, and forwards over mutual TLS to a pool replica behind a circuit breaker.

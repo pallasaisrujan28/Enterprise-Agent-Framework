@@ -3,7 +3,7 @@ title: "Components and Interfaces"
 type: hub
 tags: [hub]
 source: .kiro/specs/enterprise-agent-framework/design.md
-generated: 2026-07-31T20:03:07+00:00
+generated: 2026-08-04T10:12:35+00:00
 ---
 
 # Components and Interfaces
@@ -17,7 +17,8 @@ Consolidated index of every framework component, its interface surface, and the 
 | Classification (§[[ADR-013]]) | `classify(request) -> RoutingDecision`, `log_routing_outcome(decision, outcome)` | Declared-intent short-circuit, else one Bedrock call. One swappable seam; decisions and outcomes logged but not yet consumed | Request rate (bounded by Bedrock quota) |
 | Planner Sub-agent (§[[ADR-002]]) | `plan(task) -> TaskPlan`, `replan(TaskPlan, errors) -> TaskPlan` | Decomposition, `todo.md` ownership, re-planning | Concurrent tasks |
 | Prompt Assembler ([[§3.1]].4) | `assemble(session, plan, mask) -> AssembledPrompt` | Stable prefix (tool defs + skill index) + append-only tail, `prefix_hash` emission | Turns/sec |
-| Skill Registry (§[[ADR-002b]]) | `validate_skill`, `build_skill_index`, `load_skill_body`, `read_skill_reference`, `run_skill_script`, `evaluate_skill`, `skill_search` | Versioned skill artifacts across three load levels — metadata in the prefix, bodies on demand, bundled resources on demand with **scripts executed rather than read**; eval-gated promotion; can never widen access | Skill count (index has a ceiling) |
+| Skills Engine (§[[ADR-002b]]) | `load_skill`, `load_skillset`, `build_skill_index`, `validate_against_catalog`, `validate_scopes`, `load_skill_body`, `read_skill_reference`, `run_skill_script` | In the request path. Loads skills across three levels — metadata in the prefix, bodies on demand, bundled resources on demand with **scripts executed rather than read**; refuses at load anything it cannot enforce; can never widen access | Skill count (index has a ceiling) |
+| Skill Registry (§[[ADR-002b]]) | `promote_skill`, `evaluate_skill`, `grant_skill`, `rollback_pointer`, `skill_search` | Never in the request path. Versioned skill artifacts, eval-gated promotion, canary and pointer rollback under [[ADR-014]], policy grants per agent | Artifact count and version retention |
 | Sub-graph Registry ([[§2.12]].1) | `invoke_subgraph(name, args, handoff) -> SubAgentResult` | Compiled units with their own prefix and isolated context; invoked **as a tool**; depth-limited at dispatch | Sub-graph count (parent topology constant) |
 | Retry / Failure Scoping ([[§2.13]]) | `detect_failure_loop`, `distill_failure`, `reattempt_task` | Three retry scopes; distilled lesson forward, full record durable; breaks identical-failure loops | Failure rate |
 | Model Proxy (§[[ADR-011]]) | `complete(AssembledPrompt) -> Completion` | Model routing, prompt caching, egress redaction | Turns/sec |

@@ -2,8 +2,8 @@
 
 This module is why the platform exists. Everything else — the loop, the tools,
 the retrieval — is commodity work that any competent team can build. The gate is
-the part that lets a customer say "our agent follows our rules" and be able to
-prove it rather than assert it.
+the part that lets a customer say "our agent follows our procedures" and be able
+to prove it rather than assert it.
 
 Two properties matter more than anything else here:
 
@@ -21,8 +21,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from agent.rules import obligations as ob_lib
-from agent.rules.model import Draft, Rule, Violation
+from agent.skills_engine import obligations as ob_lib
+from agent.skills_engine.model import Draft, Skill, Violation
 
 
 @dataclass(frozen=True)
@@ -43,8 +43,8 @@ class GateResult:
     def passed(self) -> bool:
         """True when nothing blocks delivery.
 
-        Note that observe-mode violations do NOT block. They are recorded so a
-        rule can be tuned against real traffic before it is promoted to
+        Note that observe-mode violations do NOT block. They are recorded so an
+        obligation can be tuned against real traffic before it is promoted to
         enforcing — the alternative is a gate that blocks good answers on its
         first day and gets disabled by the first person it inconveniences.
         """
@@ -52,21 +52,21 @@ class GateResult:
 
     def reason(self) -> str:
         """Why delivery was refused, for the retry prompt and the audit record."""
-        return "; ".join(f"{v.rule}/{v.obligation}: {v.detail}" for v in self.blocking)
+        return "; ".join(f"{v.skill}/{v.obligation}: {v.detail}" for v in self.blocking)
 
 
-def evaluate(draft: Draft, triggered: tuple[Rule, ...]) -> GateResult:
-    """Check a draft against the obligations of every rule that fired this turn.
+def evaluate(draft: Draft, triggered: tuple[Skill, ...]) -> GateResult:
+    """Check a draft against the obligations of every skill that fired this turn.
 
-    Only triggered rules are checked. A rule whose guidance never entered the
+    Only triggered skills are checked. A skill whose guidance never entered the
     prompt has no business judging the answer — obligations are the enforcement
     half of a specific instruction, not free-floating platform policy. Platform
     policy (PII, jailbreak, tenant isolation) is enforced elsewhere and always.
     """
     violations: list[Violation] = []
 
-    for rule in triggered:
-        for obligation in rule.obligations:
+    for skill in triggered:
+        for obligation in skill.obligations:
             try:
                 detail = ob_lib.check(draft, obligation)
             except Exception as exc:  # noqa: BLE001 — see the fail-closed note above
@@ -75,7 +75,7 @@ def evaluate(draft: Draft, triggered: tuple[Rule, ...]) -> GateResult:
                 continue
             violations.append(
                 Violation(
-                    rule=rule.name,
+                    skill=skill.name,
                     obligation=obligation.kind,
                     detail=detail,
                     blocking=obligation.blocking,

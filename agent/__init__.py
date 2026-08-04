@@ -3,8 +3,9 @@
 A small, boring agent loop wrapped in the two things a personal-assistant agent
 does not need and an enterprise one cannot ship without:
 
-  rules        published by the business, in two forms from one file — guidance
-               the model reads, and obligations the system enforces.
+  skills       published by the business, one file per procedure — guidance the
+               model reads, the tools it may use, and obligations the system
+               enforces outside the model.
   boundaries   a user boundary at the edge, and an agent + tool + delegated-user
                boundary at every tool call.
 

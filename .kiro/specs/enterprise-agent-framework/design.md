@@ -475,6 +475,16 @@ flowchart TB
 Two consequences worth stating plainly, because both were mis-stated in an earlier draft of this design:
 
 - **Skill selection is not a semantic retrieval step by default.** The model sees every Level-1 index line in the prefix and picks from them the way it picks a tool. There is no embedding lookup in the common path. `skill_search` is the exception that arrives only past the index ceiling (§7.9), and it exists because the flat index stopped being affordable, not because search is better.
+
+  **Why skills resist retrieval where tools accept it, which is not a symmetry this design assumed at first.** Semantic tool search was adopted deliberately (ADR-021) on evidence that large static catalogs degrade selection accuracy. That reasoning does *not* transfer to skills, for three reasons:
+
+  1. **The cost is already gone.** A tool spec is a JSON schema and cannot be compressed to one line; a skill's resident footprint is already one line at ≈100 tokens. Progressive disclosure did the work retrieval would be doing. Searching the index optimises the cheap half — 5,000 tokens at 50 skills — while the expensive half is already deferred.
+  2. **The failure is silent rather than loud.** A missed tool announces itself: the model reports it cannot do the thing, or calls the wrong tool and gets a wrong-shaped result. A missed skill produces a fluent answer from general knowledge with the procedure simply absent. Retrieval is acceptable where recall misses are visible and dangerous where they are not.
+  3. **It would put a probabilistic step in front of enforcement.** The gate checks the obligations of **triggered** skills only — correctly, since a skill whose guidance never entered the prompt has no business blocking an answer (§3.1.10). But that means if retrieval decides which skills are even *candidates*, a recall miss does not raise a violation: the obligation was never evaluated, and nothing records that it wasn't. With a flat index the model can still fail to *select* a skill, but the candidate set is complete and the miss is detectable in eval. With retrieval the skill was never in the room. An unenforced obligation nobody can detect is the same failure the loader refuses files to prevent.
+
+  **The lever to reach for before retrieval is deterministic partition.** Skills are granted per agent, tenant and role by policy, which already filters the index — the same token reduction with zero recall risk and a prefix that stays byte-stable per agent. Prefer a partition that can be proven over a ranking that can only be measured.
+
+  **If the ceiling is genuinely reached, `skill_search` is two-tier, not all-or-nothing.** A skill declares whether it is retrievable. Compliance-critical skills — the ones whose absence fails silently — stay resident in the index unconditionally; only the long tail becomes searchable. The flag is validated at load like every other manifest field, so "this skill must always be visible" is enforced rather than remembered.
 - **The cache is a property of the bytes, not of the conversation.** A busy agent stays warm because many sessions share one prefix; an idle session goes cold on provider TTL regardless of how important it is. Cost models built on "the session is cached" are wrong; the right unit is the prefix.
 
 **Structure of a skill.**
@@ -508,7 +518,20 @@ END STRUCTURE
 
 > Content from the Agent Skills loading-system specification was rephrased for compliance with licensing restrictions.
 
-**Validation at load (fail closed).** Two checks are non-negotiable:
+**Two components, not one: the Skills Engine and the Skill Registry.** Recorded because an earlier draft used one name for both and the ambiguity reached the code, where the package holding the machinery and the directory holding the artifacts were both called `skills`. They are separate concerns with **different lifetimes**, and the split is the reason the name is now explicit in both places.
+
+| | **Skills Engine** | **Skill Registry** |
+| --- | --- | --- |
+| What it is | In-process machinery: parse, validate, build the index, refuse the unenforceable, hand obligations to the gate | Storage and promotion pipeline: where versioned skill artifacts live and how they reach an agent |
+| Lives at | `agent/skills_engine/` — code | `skills/**` as source of truth, promoted artifacts under ADR-014 |
+| Operations | `load_skill`, `load_skillset`, `build_skill_index`, `validate_against_catalog`, `validate_scopes`, `load_skill_body`, `run_skill_script` | version, canary, grant by policy, eval-gate, roll back by pointer, `skill_search` past the ceiling |
+| Runs | **Every session** — at start to build the pinned index, and on every trigger to load a body | **At a promotion boundary** — never in the request path |
+| Fails by | Refusing to load. A skill that cannot be enforced never reaches an agent | Refusing to promote. A skill whose eval cases regress does not ship |
+| Built | Yes — the loader, the obligation checks, and the gate exist | Not yet; Phase 3–4 |
+
+The boundary is worth holding because the failure modes are different and land on different people. An Engine defect is a **runtime** fault in the request path — a skill silently not enforced, which is the one outcome this whole ADR exists to prevent. A Registry defect is a **release** fault — the wrong version of a correct skill reaching an agent, caught by canary and undone by pointer rollback (ADR-014). Collapsing them into one component means one blast radius, one on-call story, and one version number for two things that change at wildly different rates.
+
+**Validation at load (fail closed).** Two checks are non-negotiable, and both are the **Engine's** job, not the Registry's — they must hold at load in the request path, not merely at promotion time, because the pinned tool catalog can change underneath a skill that was valid when it shipped:
 1. Every `required_tools` entry resolves in the pinned tool catalog version. A skill referencing a tool that does not exist never loads.
 2. Every `required_scopes` entry is within the agent's effective policy grants. **A skill can never widen access** — it can only narrow or use what the agent already has. This mirrors the policy-containment guarantee (Property 18) and is enforced at the same place, so a skill is not a side door around §3.2.
 
@@ -1314,6 +1337,44 @@ Long-term memory runs [extraction strategies](https://docs.aws.amazon.com/bedroc
 - **Passing each tenant's raw claims straight through to policy evaluation** — rejected. Without Cognito's attribute mapping normalizing claims into one `UserPrincipal` shape, every tenant's claim naming leaks into the authorization path, and Property 32 would need per-tenant claim-parsing code. That is a per-tenant code path in the security-critical layer, which is the worst place to have one.
 - **Fixture JWTs instead of real Cognito users** — rejected. It tests that our validation code runs, not that it validates real claims, and claim-shape mismatches are a classic integration failure.
 
+### ADR-021: Tools are reached only through the MCP gateway, and tool selection is semantic search
+
+**Decision.** Three parts, and the first is the one that matters architecturally.
+
+1. **Every tool is behind the AgentCore MCP gateway from the first tool.** No in-process tool functions, ever — not even for convenience during early development. This is what makes everything else a configuration change rather than a rewrite.
+2. **Tool selection is [semantic search](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-using-mcp-semantic-search.html)**, enabled on the gateway at creation. The agent calls `x_amz_bedrock_agentcore_search` with a natural-language query and receives the relevant tool specs, which are then injected into `toolConfig` for the following turn.
+3. **The mode is a per-agent field**, `tool_selection: semantic | declared`, so a narrow agent can be switched to declared selection without touching code.
+
+**Context.** The alternative — carrying every tool definition statically in the cached prefix — is what Waku does (`ToolRegistry.schemas()` returns all of them) and what Hermes does today, with their stated reason being that *every model tool ships on every API call*, hence a deliberately brutal bar on adding one.
+
+That approach has a measured ceiling. At roughly 50 tools (~8K tokens) most models hold 84–95% tool-selection accuracy; at ~200 tools (~32K tokens) accuracy falls to **41–83% depending on model**. A published study reports a **99.6% reduction in tool-related tokens at a 97.1% hit rate for K=3** over 121 tools. So a large static catalog is not merely expensive, it makes the model measurably worse at choosing. Hermes has an open issue moving toward hybrid tool search for exactly this reason.
+
+**Rationale, and the honest shape of the trade.** Search returns invocable tool specs, so **provider-side schema validation is preserved** — the model still emits a validated tool call, it just learns the schema one turn earlier. That was the open question and it resolves in favour of search.
+
+The cost is specific and it lands on P1: **injecting tool specs mid-conversation changes `toolConfig`, which is part of the cached prefix, so every search invalidates the cache.** A conversation that searches once pays one cache break; one that searches repeatedly pays repeatedly.
+
+| Approach | Baseline prefix | Cache behaviour | Selection accuracy at scale |
+| --- | --- | --- | --- |
+| **Declared** (rule states `required_tools`) | All of the agent's tools, ~150 tokens each | Never breaks | Perfect — it is a lookup, not a ranking |
+| **Semantic search** | One tool | **Breaks on every search** | Degrades gracefully; the only viable option past ~50 tools |
+
+**At our current scale declared selection would measure better.** An eight-tool agent is ~1,200 cached tokens that never break, against a search round trip plus a guaranteed cache miss. Semantic search is chosen anyway, deliberately, to avoid a migration at the point where the catalog grows — and because a per-agent switch means the narrow case can be reverted with config if the measurements say so.
+
+**Consequences.**
+- (+) **No migration when the catalog grows.** The gateway, the search path, and the injection mechanism are exercised from day one rather than retrofitted at the point of pain.
+- (+) The baseline prefix stays tiny regardless of how many tools exist across the platform.
+- (+) Schema validation survives, because search hands back real specs.
+- (−) **Cache hit rate takes a measurable hit, and P1 is the north-star metric.** The mitigation is to instrument it in the first slice, so the cost is observed rather than argued about.
+- (−) An extra round trip per search, on the user's critical path.
+- (−) A ranking step is a new failure mode: a search that returns the wrong three tools produces a wrong answer with no error. `required_tools` in the rule file is the cross-check — a rule that names its tools makes a bad ranking detectable.
+- (−) **Diagnostic ambiguity while the platform is young.** With one tool and a search step, a misbehaving agent has two candidate causes instead of one. Accepted knowingly.
+
+**Alternatives considered.**
+- **Static catalog, all tools in the prefix** — rejected on the accuracy data above, and because it forces the Hermes discipline of refusing tools to protect the prefix, which pushes capability into skills whether or not that is the right home for it.
+- **Declared selection from `required_tools`, no search** — genuinely competitive today and still the recommended mode for a narrow agent. Rejected as the *default* to avoid building only the path that stops working at scale.
+- **Lazy per-tool schema fetch without semantic ranking** — rejected. It pays the same cache cost as search while giving up the ranking that makes a large catalog navigable.
+- **Threshold-triggered switch, declared until 25 tools** — rejected in favour of exercising the eventual path from the start, accepting a worse measurement now for a cheaper path later.
+
 > **Note on tech choices.** **Kubernetes remains a decided constraint rather than a substitutable default** (ADR-018) — but it is the **eventual** target and is **not yet active** (ADR-019). The current runtime is Docker Compose. Everything else named later (Envoy, OPA, Redis, LiteLLM-style proxy, Neo4j, OpenSearch/pgvector, LangSmith, DeepEval, GitHub Actions, and the specific autoscaling components in §5.7) is a **reasonable, model-agnostic default** rather than a hard requirement — and each one now carries a recorded selection rationale and tradeoff in §4.1 rather than appearing as an unexplained product name. The ADRs above constrain the *shape* of the system; substitutable products may be swapped if they satisfy the same principles.
 ---
 
@@ -1538,7 +1599,7 @@ graph TD
         PLANNER[Planner Sub-agent - todo.md recitation]
         SESSION[(Session Cache - Redis)]
         PROMPT[KV-cache-first Prompt Assembler<br/>+ skill index in stable prefix]
-        SKILLLOAD[Skill Loader - progressive disclosure<br/>body into volatile tail on demand]
+        SKILLENG[Skills Engine - ADR-002b<br/>validate + refuse the unenforceable<br/>build pinned index - progressive disclosure<br/>body into volatile tail on demand]
         MODELPROXY[Model Proxy - routing, prompt cache, PII redaction]
         DISPATCH[Tool Dispatch]
         COMPACT[Restorable Compaction / Anchored Summary]
@@ -1591,7 +1652,7 @@ graph TD
     UI --> AUTH --> SCHEMA --> OPA --> RATE --> INRAIL --> CLS
     CLS --> PLANNER --> PROMPT
     PLANNER --> EXEC
-    SKILLLOAD --> PROMPT
+    SKILLENG --> PROMPT
     PROMPT --> MODELPROXY
     EXEC --> DISPATCH --> MCPGW
     EXEC -. invoke sub-graph AS A TOOL .-> SUBG
@@ -1621,7 +1682,7 @@ graph TD
     RL -. gated promotion .-> REGART
     EVAL -. skill eval gate .-> SKILLREG
     REGART -. resolves prompts/policies .-> PROMPT
-    SKILLREG -. resolves skill index + bodies .-> SKILLLOAD
+    SKILLREG -. serves versioned artifacts - promotion boundary only .-> SKILLENG
     REGART -. resolves policies .-> OPA
 ```
 
@@ -2782,7 +2843,7 @@ END PROCEDURE
 - **Orchestrator ↔ Session Cache:** The orchestrator is stateless; all session state (history references, plan, anchored summary) is read/written to Redis keyed by `tenant_id:session_id`.
 - **Orchestrator ↔ Model Proxy:** The assembled prompt goes to the model proxy, which routes by task type (ADR-011), applies prompt caching at the cache breakpoint, and re-checks PII redaction before provider egress.
 - **Orchestrator ↔ Executors:** Handoffs are minimal for SIMPLE tasks and include trajectory + filesystem handles for COMPLEX tasks. Results return via the constrained `submit-results` tool, with `REROUTE` as a first-class outcome (ADR-013).
-- **Orchestrator ↔ Skill Registry:** At session start the orchestrator resolves the agent's granted skills into a pinned `SkillIndexVersion` whose one-line entries enter the stable prefix. During the loop, a skill **body** is fetched and appended to the volatile tail on demand — never into the prefix (ADR-002b).
+- **Orchestrator ↔ Skills Engine:** At session start the engine resolves the agent's granted skills into a pinned `SkillIndexVersion` whose one-line entries enter the stable prefix, validating each against the pinned tool catalog and the agent's scopes and refusing to load any skill it cannot enforce. During the loop, a skill **body** is fetched and appended to the volatile tail on demand — never into the prefix (ADR-002b). The **Skill Registry** supplies the versioned artifacts the engine loads and is not otherwise in the request path.
 - **Executors ↔ Sub-graph Registry:** A sub-graph is invoked **as a tool** with a `depth` counter; dispatch rejects invocations past the depth limit before any model call. The sub-graph runs on its own stable prefix and its own isolated context and returns through the same `submit_results` contract (§2.12.1).
 - **Retry scoping ↔ Executors:** A scope-2 re-attempt is a **new** executor with a clean context carrying only a `FailureLesson`; the failed attempt's full trajectory stays addressable in T2 and is not read by the retrying model (§2.13).
 - **Dispatch ↔ MCP Gateway ↔ Pools:** Dispatch sends a `ToolCall` with propagated trace context; the MCP gateway validates schema, re-checks the allowlist, resolves `tool → pool` via the registry, and forwards over mutual TLS to a pool replica behind a circuit breaker.
@@ -4588,7 +4649,8 @@ Consolidated index of every framework component, its interface surface, and the 
 | Classification (§ADR-013) | `classify(request) -> RoutingDecision`, `log_routing_outcome(decision, outcome)` | Declared-intent short-circuit, else one Bedrock call. One swappable seam; decisions and outcomes logged but not yet consumed | Request rate (bounded by Bedrock quota) |
 | Planner Sub-agent (§ADR-002) | `plan(task) -> TaskPlan`, `replan(TaskPlan, errors) -> TaskPlan` | Decomposition, `todo.md` ownership, re-planning | Concurrent tasks |
 | Prompt Assembler (§3.1.4) | `assemble(session, plan, mask) -> AssembledPrompt` | Stable prefix (tool defs + skill index) + append-only tail, `prefix_hash` emission | Turns/sec |
-| Skill Registry (§ADR-002b) | `validate_skill`, `build_skill_index`, `load_skill_body`, `read_skill_reference`, `run_skill_script`, `evaluate_skill`, `skill_search` | Versioned skill artifacts across three load levels — metadata in the prefix, bodies on demand, bundled resources on demand with **scripts executed rather than read**; eval-gated promotion; can never widen access | Skill count (index has a ceiling) |
+| Skills Engine (§ADR-002b) | `load_skill`, `load_skillset`, `build_skill_index`, `validate_against_catalog`, `validate_scopes`, `load_skill_body`, `read_skill_reference`, `run_skill_script` | In the request path. Loads skills across three levels — metadata in the prefix, bodies on demand, bundled resources on demand with **scripts executed rather than read**; refuses at load anything it cannot enforce; can never widen access | Skill count (index has a ceiling) |
+| Skill Registry (§ADR-002b) | `promote_skill`, `evaluate_skill`, `grant_skill`, `rollback_pointer`, `skill_search` | Never in the request path. Versioned skill artifacts, eval-gated promotion, canary and pointer rollback under ADR-014, policy grants per agent | Artifact count and version retention |
 | Sub-graph Registry (§2.12.1) | `invoke_subgraph(name, args, handoff) -> SubAgentResult` | Compiled units with their own prefix and isolated context; invoked **as a tool**; depth-limited at dispatch | Sub-graph count (parent topology constant) |
 | Retry / Failure Scoping (§2.13) | `detect_failure_loop`, `distill_failure`, `reattempt_task` | Three retry scopes; distilled lesson forward, full record durable; breaks identical-failure loops | Failure rate |
 | Model Proxy (§ADR-011) | `complete(AssembledPrompt) -> Completion` | Model routing, prompt caching, egress redaction | Turns/sec |
@@ -4631,7 +4693,7 @@ Every contract is defined in §3.1; this is the index plus the two persistence m
 | `RetrievalQuery`, `RetrievalResult` | §3.1.6 | Executors → Knowledge Layer |
 | `TrajectoryRecord`, `TokenLedger`, `RoutingDecision`, `AttemptRecord` | §3.1.7 | Everything → Observability (and the cascade training set) |
 | `FailureLesson` | §3.1.9 | Retry scoping → fresh executor (scope 2) |
-| `SkillManifest`, `BundledResources`, `Skill` | ADR-002b | Skill Registry → Prompt Assembler (L1) / Skill Loader (L2) / Sandbox (L3 scripts) |
+| `SkillManifest`, `BundledResources`, `Skill` | ADR-002b | Skill Registry → Skills Engine → Prompt Assembler (L1) / volatile tail (L2) / Sandbox (L3 scripts) |
 | `SkillIndexVersion`, `ToolCatalogVersion`, `McpServerRef` | §3.1.10 | Artifact registry → session pinning → prompt prefix |
 | `TranscriptEntry`, `CompactionEntry` | §3.1.11 | Session history (tree) ↔ Compaction Worker ↔ replay, evals, forks |
 | `TenantPolicyBundle`, `AgentPolicy`, `ToolGrant`, `ArgConstraint` | §3.2.1 | Policy Store → PDP |
