@@ -11,14 +11,14 @@ from __future__ import annotations
 import pytest
 
 from agent.gate import evaluate
-from agent.rules.model import Draft, Obligation, Rule
-from agent.rules.obligations import check, known_kinds, register
+from agent.skills_engine.model import Draft, Obligation, Skill
+from agent.skills_engine.obligations import check, known_kinds, register
 
 
-def _rule(*obligations: Obligation) -> Rule:
-    return Rule(
-        name="r",
-        description="Test rule.",
+def _skill(*obligations: Obligation) -> Skill:
+    return Skill(
+        name="s",
+        description="Test skill.",
         version="deadbeef",
         body="body",
         obligations=obligations,
@@ -155,8 +155,8 @@ def test_must_not_call_names_every_forbidden_tool_used():
 
 
 def test_gate_records_observe_mode_violations_without_blocking():
-    rule = _rule(Obligation(kind="must_cite", params={}, mode="observe"))
-    result = evaluate(_draft(citations=()), (rule,))
+    skill = _skill(Obligation(kind="must_cite", params={}, mode="observe"))
+    result = evaluate(_draft(citations=()), (skill,))
     assert result.passed
     assert len(result.observed) == 1
     assert result.blocking == ()
@@ -173,12 +173,12 @@ def test_gate_fails_closed_when_a_checker_raises():
     # params.fields is a string, so the checker iterates characters and then
     # calls draft.fact() on each — the point is that whatever goes wrong, the
     # gate does not let the answer past.
-    rule = _rule(boom)
-    result = evaluate(_draft(facts={}), (rule,))
+    skill = _skill(boom)
+    result = evaluate(_draft(facts={}), (skill,))
     assert not result.passed
 
 
 def test_violation_renders_its_severity():
-    rule = _rule(Obligation(kind="must_cite", params={}))
-    result = evaluate(_draft(citations=()), (rule,))
+    skill = _skill(Obligation(kind="must_cite", params={}))
+    result = evaluate(_draft(citations=()), (skill,))
     assert str(result.blocking[0]).startswith("[BLOCK]")
