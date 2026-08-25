@@ -5,8 +5,8 @@ Provides read, write, ls, grep, glob, edit, delete, upload, download
 backed by an S3 bucket. Used as the /workspace backend in brain.py's
 CompositeBackend so the agent's workspace files persist across pod restarts.
 
-All paths the agent uses are relative (e.g. "reports/summary.md").
-The backend handles the S3 key translation internally.
+All paths the agent uses start with /workspace/ (e.g. /workspace/reports/summary.md).
+The backend strips that prefix and maps to S3 keys internally.
 
 Auth: IRSA (pod service account annotation) — no stored credentials.
 """
@@ -16,83 +16,25 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import re
-from dataclasses import dataclass, field
 
 import boto3
 from botocore.exceptions import ClientError
-from deepagents.backends.protocol import BackendProtocol
-
-# ── Result types ──────────────────────────────────────────────────────────────
-# deepagents BackendProtocol uses these result dataclasses. We re-export them
-# from deepagents.backends.protocol where they live.
-
-try:
-    from deepagents.backends.protocol import (
-        DeleteResult,
-        EditResult,
-        FileDownloadResponse,
-        FileUploadResponse,
-        GlobResult,
-        GrepMatch,
-        GrepResult,
-        LsResult,
-        ReadResult,
-        WriteResult,
-    )
-except ImportError:
-    # Fallback definitions — keeps the class importable before deepagents installs.
-    # These match the shape deepagents expects.
-    @dataclass
-    class ReadResult:
-        content: str = ""
-        truncated: bool = False
-
-    @dataclass
-    class WriteResult:
-        path: str = ""
-
-    @dataclass
-    class LsResult:
-        path: str = ""
-        files: list[str] = field(default_factory=list)
-        dirs: list[str] = field(default_factory=list)
-
-    @dataclass
-    class GrepMatch:
-        file: str = ""
-        line: int = 0
-        content: str = ""
-
-    @dataclass
-    class GrepResult:
-        matches: list[GrepMatch] = field(default_factory=list)
-
-    @dataclass
-    class GlobResult:
-        paths: list[str] = field(default_factory=list)
-
-    @dataclass
-    class EditResult:
-        path: str = ""
-
-    @dataclass
-    class DeleteResult:
-        path: str = ""
-
-    @dataclass
-    class FileUploadResponse:
-        path: str = ""
-
-    @dataclass
-    class FileDownloadResponse:
-        path: str = ""
-        content: bytes = b""
+from deepagents.backends.protocol import (  # type: ignore[import-not-found]
+    BackendProtocol,
+    DeleteResult,
+    EditResult,
+    FileDownloadResponse,
+    FileUploadResponse,
+    GlobResult,
+    GrepMatch,
+    GrepResult,
+    LsResult,
+    ReadResult,
+    WriteResult,
+)
 
 
-# ── EAFBackend ─────────────────────────────────────────────────────────────────
-
-
-class EAFBackend(BackendProtocol):
+class EAFBackend(BackendProtocol):  # type: ignore[misc]
     """
     S3-backed workspace for the EAF agent.
 
@@ -103,25 +45,25 @@ class EAFBackend(BackendProtocol):
       - glob (find files by pattern)
       - upload / download binary files
 
-    Used via CompositeBackend in brain.py:
+    Plugged into CompositeBackend in brain.py:
         "/workspace" → EAFBackend(bucket=WORKSPACE_BUCKET)
     """
 
     def __init__(self, bucket: str, region: str = "eu-west-2") -> None:
         self.bucket = bucket
-        self._s3 = boto3.client("s3", region_name=region)
+        self._s3 = boto3.client("s3", region_name=region)  # type: ignore[attr-defined]
 
     # ── Key helpers ───────────────────────────────────────────────────────────
 
     def _key(self, path: str) -> str:
-        """Strip leading /workspace/ prefix and any leading slash."""
+        """Strip /workspace/ prefix — return bare S3 key."""
         clean = path.lstrip("/")
         if clean.startswith("workspace/"):
             clean = clean[len("workspace/") :]
         return clean
 
     def _path(self, key: str) -> str:
-        """Convert an S3 key back to an agent-facing path."""
+        """Convert S3 key → agent-facing path."""
         return f"/workspace/{key}"
 
     # ── READ ──────────────────────────────────────────────────────────────────
@@ -137,10 +79,7 @@ class EAFBackend(BackendProtocol):
 
         lines = raw.splitlines(keepends=True)
         sliced = lines[offset : offset + limit]
-        return ReadResult(
-            content="".join(sliced),
-            truncated=len(lines) > offset + limit,
-        )
+        return ReadResult(content="".join(sliced), truncated=len(lines) > offset + limit)
 
     async def aread(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
         return await asyncio.to_thread(self.read, file_path, offset, limit)
@@ -170,13 +109,11 @@ class EAFBackend(BackendProtocol):
     ) -> EditResult:
         result = self.read(file_path)
         content = result.content
-
         if old_string not in content:
             raise ValueError(
                 f"old_string not found in {file_path}. "
                 "Read the file first to verify the exact content."
             )
-
         new_content = (
             content.replace(old_string, new_string)
             if replace_all
@@ -186,11 +123,7 @@ class EAFBackend(BackendProtocol):
         return EditResult(path=file_path)
 
     async def aedit(
-        self,
-        file_path: str,
-        old_string: str,
-        new_string: str,
-        replace_all: bool = False,
+        self, file_path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         return await asyncio.to_thread(self.edit, file_path, old_string, new_string, replace_all)
 
@@ -203,32 +136,26 @@ class EAFBackend(BackendProtocol):
     async def adelete(self, file_path: str) -> DeleteResult:
         return await asyncio.to_thread(self.delete, file_path)
 
-    # ── LS (directory listing) ─────────────────────────────────────────────────
+    # ── LS ────────────────────────────────────────────────────────────────────
 
     def ls(self, path: str) -> LsResult:
         prefix = self._key(path)
         if prefix and not prefix.endswith("/"):
             prefix += "/"
 
-        resp = self._s3.list_objects_v2(
-            Bucket=self.bucket,
-            Prefix=prefix,
-            Delimiter="/",
-        )
-
+        resp = self._s3.list_objects_v2(Bucket=self.bucket, Prefix=prefix, Delimiter="/")
         dirs = [cp["Prefix"][len(prefix) :].rstrip("/") for cp in resp.get("CommonPrefixes", [])]
         files = [
             obj["Key"][len(prefix) :]
             for obj in resp.get("Contents", [])
             if not obj["Key"].endswith("/") and obj["Key"] != prefix
         ]
-
         return LsResult(path=path, dirs=dirs, files=files)
 
     async def als(self, path: str) -> LsResult:
         return await asyncio.to_thread(self.ls, path)
 
-    # ── GREP (search content) ──────────────────────────────────────────────────
+    # ── GREP ──────────────────────────────────────────────────────────────────
 
     def grep(
         self,
@@ -240,20 +167,14 @@ class EAFBackend(BackendProtocol):
     ) -> GrepResult:
         search_prefix = self._key(path or "")
         paginator = self._s3.get_paginator("list_objects_v2")
-        pages = paginator.paginate(Bucket=self.bucket, Prefix=search_prefix)
-
         compiled = re.compile(pattern)
         matches: list[GrepMatch] = []
 
-        for page in pages:
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=search_prefix):
             for obj in page.get("Contents", []):
                 key = obj["Key"]
-                relative = self._path(key)
-
-                # Apply glob filter if provided
                 if glob and not fnmatch.fnmatch(key.split("/")[-1], glob):
                     continue
-
                 try:
                     raw = (
                         self._s3.get_object(Bucket=self.bucket, Key=key)["Body"]
@@ -262,10 +183,9 @@ class EAFBackend(BackendProtocol):
                     )
                 except ClientError:
                     continue
-
                 for line_num, line in enumerate(raw.splitlines(), start=1):
                     if compiled.search(line):
-                        matches.append(GrepMatch(file=relative, line=line_num, content=line))
+                        matches.append(GrepMatch(file=self._path(key), line=line_num, content=line))
                         if max_count and len(matches) >= max_count:
                             return GrepResult(matches=matches)
 
@@ -281,18 +201,16 @@ class EAFBackend(BackendProtocol):
     ) -> GrepResult:
         return await asyncio.to_thread(self.grep, pattern, path, glob, max_count=max_count)
 
-    # ── GLOB (find files by pattern) ───────────────────────────────────────────
+    # ── GLOB ──────────────────────────────────────────────────────────────────
 
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
         search_prefix = self._key(path or "")
         paginator = self._s3.get_paginator("list_objects_v2")
-        pages = paginator.paginate(Bucket=self.bucket, Prefix=search_prefix)
-
         matched: list[str] = []
-        for page in pages:
+
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=search_prefix):
             for obj in page.get("Contents", []):
                 key = obj["Key"]
-                # Match against the relative path from workspace root
                 relative = key[len(search_prefix) :].lstrip("/") if search_prefix else key
                 if fnmatch.fnmatch(relative, pattern):
                     matched.append(self._path(key))
@@ -302,7 +220,7 @@ class EAFBackend(BackendProtocol):
     async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
         return await asyncio.to_thread(self.glob, pattern, path)
 
-    # ── UPLOAD / DOWNLOAD (binary files) ──────────────────────────────────────
+    # ── UPLOAD / DOWNLOAD ─────────────────────────────────────────────────────
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         results = []

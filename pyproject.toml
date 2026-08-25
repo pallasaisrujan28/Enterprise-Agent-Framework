@@ -57,3 +57,6 @@ ignore = ["E501"]
 # `test/` not `tests/`, matching the ai-chat-infrastructure layout.
 testpaths = ["test"]
 # No addopts — the Makefile owns verbosity, so `make test` and CI agree.
+
+[tool.mypy]
+ignore_missing_imports = true
