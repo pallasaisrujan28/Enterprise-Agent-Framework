@@ -59,5 +59,4 @@ testpaths = ["test"]
 # No addopts — the Makefile owns verbosity, so `make test` and CI agree.
 
 [tool.mypy]
-python_version = "3.11"
 ignore_missing_imports = true
