@@ -2,18 +2,28 @@
 Semantic tool registry — selects tools relevant to the current task using
 Bedrock Titan Embeddings instead of passing every tool schema to the model.
 
+Architecture (current — direct):
+  Tools are Python @tool functions registered in brain.py.
+  ToolRegistry embeds their descriptions at startup, picks top-k per turn.
+  Tool calls go directly from the agent to the backend (SearXNG, Crawl4AI, etc).
+
+Architecture (target — AgentCore Gateway):
+  Tools are registered as MCP servers in AgentCore Gateway (eu-west-2).
+  AgentCore Gateway provides:
+    - Central access control (IAM per tool — who can call what)
+    - Rate limiting and quota enforcement
+    - Full audit trail of every tool invocation
+    - MCP ListTools discovery (new tools appear without a code deploy)
+  ToolRegistry will query the Gateway MCP endpoint at startup to discover
+  tools, embed their descriptions, then rank per turn. Tool calls go:
+    agent → ToolRegistry.get_relevant_tools() → AgentCore Gateway (MCP) → backend
+  Required: AGENTCORE_GATEWAY_ENDPOINT env var pointing to the Gateway URL.
+
 Why not a hardcoded list?
-  A list of 20 tools passed on every turn wastes ~2k tokens of context
-  window, confuses the model with irrelevant schemas, and does not scale
-  as more tools are added. The registry embeds tool descriptions once at
-  startup and retrieves only the top-k most similar tools per turn.
-
-How it works:
-  1. At startup: embed f"{tool.name}: {tool.description}" for every tool.
-  2. Each turn: embed the current user task and rank tools by cosine similarity.
-  3. Pass only the top-k tools to create_react_agent for that turn.
-
-Adding a new tool: register it in agent/brain.py — no other change needed.
+  20 tool schemas on every turn wastes ~2k context tokens and confuses the
+  model with irrelevant options. The registry picks only the top-k most
+  similar to the current task — focused context, better reasoning. Adding
+  a tool only requires registering it (in brain.py now, in Gateway later).
 """
 
 from __future__ import annotations
@@ -56,7 +66,10 @@ class _Entry:
 class ToolRegistry:
     """
     Holds all available tools with pre-computed description embeddings.
-    Call get_relevant_tools(task) each turn to get only the most relevant ones.
+    Call get_relevant_tools(task) each turn to retrieve only the most relevant.
+
+    Future: when AGENTCORE_GATEWAY_ENDPOINT is set, populate from the Gateway
+    MCP ListTools endpoint instead of receiving a local Python tools list.
     """
 
     def __init__(self, tools: list[BaseTool], top_k: int = 4) -> None:
