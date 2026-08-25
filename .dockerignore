@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.git/
+.github/
+k8s/
+test/
+docs/
+*.md
+uv.lock
+.env
