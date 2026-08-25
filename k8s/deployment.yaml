@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: eaf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      serviceAccountName: eaf-agent   # IRSA: pod gets AWS credentials automatically
+      containers:
+        - name: agent
+          image: 718438899462.dkr.ecr.eu-west-2.amazonaws.com/eaf/agent:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AWS_REGION
+              value: eu-west-2
+            - name: BEDROCK_PRIMARY_MODEL
+              value: anthropic.claude-sonnet-4-6
+            - name: BEDROCK_FAST_MODEL
+              value: anthropic.claude-haiku-4-5-20251001-v1:0
+            - name: S3_WORKSPACE_BUCKET
+              value: eaf-dev-agent-workspaces-718438899462
+            - name: LANGCHAIN_TRACING_V2
+              value: "true"
+            - name: LANGCHAIN_PROJECT
+              value: eaf-dev
+            - name: LANGCHAIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: langsmith-secret
+                  key: api-key
+                  optional: true   # agent starts without tracing if key not set
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
