@@ -57,7 +57,6 @@ ignore = ["E501"]
 testpaths = ["test"]
 
 [tool.mypy]
-python_version = "3.11"
 # Third-party packages without stubs (boto3, deepagents, langchain_aws, etc.)
 # are excluded from strict import checking. Remove per-package once stubs exist.
 ignore_missing_imports = true
