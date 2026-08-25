@@ -22,8 +22,5 @@ def search_memory(query: str, session_id: str, top_k: int = 5) -> str:
     if not results:
         return "No relevant content found in session memory — try fetch_and_store."
 
-    parts = [
-        f"[score={r['score']:.3f}] {r['url']}\n{r['text'][:800]}"
-        for r in results
-    ]
+    parts = [f"[score={r['score']:.3f}] {r['url']}\n{r['text'][:800]}" for r in results]
     return "\n\n---\n\n".join(parts)

@@ -75,8 +75,7 @@ class ToolRegistry:
     def __init__(self, tools: list[BaseTool], top_k: int = 4) -> None:
         self._top_k = top_k
         self._entries: list[_Entry] = [
-            _Entry(tool=t, embedding=_embed(f"{t.name}: {t.description}"))
-            for t in tools
+            _Entry(tool=t, embedding=_embed(f"{t.name}: {t.description}")) for t in tools
         ]
 
     def get_relevant_tools(self, task: str) -> list[BaseTool]:

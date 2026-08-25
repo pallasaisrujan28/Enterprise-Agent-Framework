@@ -81,6 +81,10 @@ def search(session_id: str, query: str, top_k: int = 5) -> list[dict]:
         with_payload=True,
     )
     return [
-        {"score": hit.score, "url": (hit.payload or {}).get("url"), "text": (hit.payload or {}).get("text", "")}
+        {
+            "score": hit.score,
+            "url": (hit.payload or {}).get("url"),
+            "text": (hit.payload or {}).get("text", ""),
+        }
         for hit in results
     ]

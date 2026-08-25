@@ -20,7 +20,12 @@ def web_search(query: str, num_results: int = 10) -> str:
     """
     resp = httpx.get(
         SEARXNG_URL,
-        params={"q": query, "format": "json", "engines": "google,bing,duckduckgo,wikipedia", "results": num_results},
+        params={
+            "q": query,
+            "format": "json",
+            "engines": "google,bing,duckduckgo,wikipedia",
+            "results": num_results,
+        },
         timeout=30,
     )
     resp.raise_for_status()

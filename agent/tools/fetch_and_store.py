@@ -41,8 +41,7 @@ def fetch_and_store(url: str, session_id: str) -> str:
         return f"No content extracted from {url}"
 
     text_chunks = [
-        (chunk.get("text", "") if isinstance(chunk, dict) else str(chunk))
-        for chunk in raw_chunks
+        (chunk.get("text", "") if isinstance(chunk, dict) else str(chunk)) for chunk in raw_chunks
     ]
     stored = mem.store(session_id=session_id, source_url=url, chunks=text_chunks)
     return f"Stored {stored} chunks from {url} in session memory"

@@ -25,6 +25,7 @@ _CHARS_PER_TOKEN = 4
 def _count(text: str) -> int:
     try:
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except ImportError:

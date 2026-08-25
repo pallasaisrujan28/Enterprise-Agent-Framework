@@ -57,7 +57,9 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     violations = [v for v in policy_evaluate(safe_input, _POLICIES) if v.action == "deny"]
     if violations:
-        raise HTTPException(status_code=400, detail=f"Policy violation: {violations[0].description}")
+        raise HTTPException(
+            status_code=400, detail=f"Policy violation: {violations[0].description}"
+        )
 
     agent = brain.build_agent(task=safe_input)
     result = agent.invoke(

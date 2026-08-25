@@ -32,8 +32,8 @@ POLICIES_DIR = Path(__file__).parents[2] / "policies"
 class Rule:
     id: str
     description: str
-    action: str          # "deny" | "log" | "allow"
-    pattern: str = ""    # regex matched against the text being evaluated
+    action: str  # "deny" | "log" | "allow"
+    pattern: str = ""  # regex matched against the text being evaluated
 
     def matches(self, text: str) -> bool:
         if not self.pattern:

@@ -41,7 +41,7 @@ class GuardrailBlocked(RuntimeError):
     """Raised when Bedrock Guardrails blocks the content."""
 
     def __init__(self, source: str, action: str, reasons: list[str]) -> None:
-        self.source = source   # "INPUT" or "OUTPUT"
+        self.source = source  # "INPUT" or "OUTPUT"
         self.action = action
         self.reasons = reasons
         super().__init__(f"Guardrail blocked {source}: {'; '.join(reasons)}")
@@ -71,7 +71,9 @@ def check(text: str, source: str = "OUTPUT") -> str:
     if action == "GUARDRAIL_INTERVENED":
         reasons = [
             assessment.get("type", "unknown")
-            for assessment in resp.get("assessments", [{}])[0].get("contentPolicy", {}).get("filters", [])
+            for assessment in resp.get("assessments", [{}])[0]
+            .get("contentPolicy", {})
+            .get("filters", [])
             if assessment.get("action") == "BLOCKED"
         ]
         raise GuardrailBlocked(source=source, action=action, reasons=reasons or ["unspecified"])

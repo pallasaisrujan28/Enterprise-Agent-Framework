@@ -35,10 +35,12 @@ def maybe_compact(messages: list[BaseMessage]) -> list[BaseMessage]:
 def _summarise(messages: list[BaseMessage]) -> str:
     llm = ChatBedrockConverse(model=MODEL_ID, region_name=REGION)
     prompt = [
-        SystemMessage(content=(
-            "Summarise the following conversation history concisely. "
-            "Preserve all key facts, decisions, and findings. Output plain text, no headers."
-        )),
+        SystemMessage(
+            content=(
+                "Summarise the following conversation history concisely. "
+                "Preserve all key facts, decisions, and findings. Output plain text, no headers."
+            )
+        ),
         *messages,
     ]
     response = llm.invoke(prompt)
