@@ -16,11 +16,11 @@ import os
 from langchain_aws import ChatBedrockConverse
 from langgraph.prebuilt import create_react_agent
 
+from agent.filesystem.workspace import read_workspace_file, write_workspace_file
 from agent.registry import ToolRegistry
-from agent.tools.web_search import web_search
 from agent.tools.fetch_and_store import fetch_and_store
 from agent.tools.search_memory import search_memory
-from agent.filesystem.workspace import read_workspace_file, write_workspace_file
+from agent.tools.web_search import web_search
 
 MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
