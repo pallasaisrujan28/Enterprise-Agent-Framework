@@ -1,0 +1,136 @@
+name: build-and-deploy
+# Builds the agent Docker image, scans it for vulnerabilities, pushes to ECR,
+# and deploys to EKS.
+#
+# Triggered on every push to main (deploys to dev automatically).
+# Feature branches: build and scan only, no push or deploy.
+#
+# Auth: assumes eaf-agent-ci-role in EAF-DEV via OIDC.
+# The role is created in workloads/dev/iam.tf (Enterprise-Agent-Framework-Infra repo).
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write   # for trivy SARIF upload
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REGISTRY: 718438899462.dkr.ecr.eu-west-2.amazonaws.com
+  ECR_REPOSITORY: eaf/agent
+  EKS_CLUSTER: eaf-dev
+  DEV_ACCOUNT_ID: "718438899462"
+
+jobs:
+  build-and-scan:
+    name: build and scan
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+      push: ${{ steps.check.outputs.push }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: check if this should push
+        id: check
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: audit Python dependencies
+        run: |
+          pip install --quiet pip-audit
+          pip-audit
+
+      - name: set image tag
+        id: meta
+        run: |
+          TAG="${{ github.sha }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "full_image=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: build Docker image
+        run: |
+          docker build \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }} \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
+            .
+
+      - name: scan image with trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 1   # fail the build on CRITICAL or HIGH
+
+      - name: upload trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  push-and-deploy:
+    name: push and deploy
+    needs: build-and-scan
+    if: needs.build-and-scan.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.DEV_ACCOUNT_ID }}:role/eaf-agent-ci-role
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: eaf-agent-ci-${{ github.run_id }}
+
+      - name: login to ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: rebuild and push
+        run: |
+          docker build \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.build-and-scan.outputs.image_tag }} \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
+            .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.build-and-scan.outputs.image_tag }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: deploy to EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+
+          # Apply all k8s manifests
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/service-account.yaml
+          kubectl apply -f k8s/service.yaml
+
+          # Deploy with the new image tag (rolling update, zero downtime)
+          kubectl set image deployment/agent \
+            agent=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.build-and-scan.outputs.image_tag }} \
+            --namespace eaf
+
+          # Wait for rollout to complete
+          kubectl rollout status deployment/agent --namespace eaf --timeout=300s
+
+      - name: summary
+        run: |
+          {
+            echo "## Deployed to EKS dev"
+            echo "Image: \`${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.build-and-scan.outputs.image_tag }}\`"
+            echo "Cluster: \`${{ env.EKS_CLUSTER }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
