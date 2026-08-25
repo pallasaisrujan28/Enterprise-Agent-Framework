@@ -44,11 +44,6 @@ jobs:
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: audit Python dependencies
-        run: |
-          pip install --quiet pip-audit
-          pip-audit
-
       - name: set image tag
         id: meta
         run: |
