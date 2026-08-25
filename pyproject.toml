@@ -60,7 +60,6 @@ ignore = ["E501"]
 testpaths = ["test"]
 
 [tool.mypy]
-python_version = "3.11"
 # Third-party packages without type stubs (boto3, qdrant-client, langchain_aws,
 # etc.) are excluded from strict import checking. Remove per-package once stubs
 # are available or the package ships py.typed.
