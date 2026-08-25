@@ -117,6 +117,7 @@ jobs:
           # Apply all k8s manifests
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/service-account.yaml
+          kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
 
           # Deploy with the new image tag (rolling update, zero downtime)
