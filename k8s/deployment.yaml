@@ -13,7 +13,7 @@ spec:
       labels:
         app: agent
     spec:
-      serviceAccountName: eaf-agent   # IRSA: pod gets AWS credentials automatically
+      serviceAccountName: eaf-agent
       containers:
         - name: agent
           image: 718438899462.dkr.ecr.eu-west-2.amazonaws.com/eaf/agent:latest
@@ -28,16 +28,19 @@ spec:
               value: anthropic.claude-haiku-4-5-20251001-v1:0
             - name: S3_WORKSPACE_BUCKET
               value: eaf-dev-agent-workspaces-718438899462
-            - name: LANGCHAIN_TRACING_V2
-              value: "true"
-            - name: LANGCHAIN_PROJECT
-              value: eaf-dev
-            - name: LANGCHAIN_API_KEY
+            # Langfuse — self-hosted in EKS (eu-west-2, data never leaves cluster)
+            - name: LANGFUSE_HOST
+              value: "http://langfuse-web.langfuse.svc.cluster.local:3000"
+            - name: LANGFUSE_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
-                  name: langsmith-secret
-                  key: api-key
-                  optional: true   # agent starts without tracing if key not set
+                  name: langfuse-agent-keys
+                  key: public-key
+            - name: LANGFUSE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-agent-keys
+                  key: secret-key
           resources:
             requests:
               cpu: 500m
