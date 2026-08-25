@@ -5,12 +5,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Copy manifest and lock file first so Docker caches the dep-install layer.
+# uv sync --frozen installs exactly what uv.lock specifies — reproducible builds.
+# If uv.lock is out of sync with pyproject.toml, the build fails loudly here.
+# To regenerate: run `uv lock` locally and commit the updated uv.lock.
 COPY pyproject.toml uv.lock ./
 RUN pip install --no-cache-dir uv \
-    && uv sync --frozen --extra bedrock --no-dev
+    && uv sync --frozen --no-dev
 
+# Copy source — ordered from least to most frequently changed.
 COPY agent/ ./agent/
+COPY agents/ ./agents/
 COPY skills/ ./skills/
+COPY policies/ ./policies/
+COPY guardrails/ ./guardrails/
 COPY scripts/ ./scripts/
 
 RUN addgroup --gid 1001 appgroup \
