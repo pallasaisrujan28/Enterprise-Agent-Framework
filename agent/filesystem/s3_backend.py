@@ -1,10 +1,6 @@
 """
 S3 backend adapter for deepagents FilesystemMiddleware.
-
-deepagents' FilesystemMiddleware is backend-agnostic. This adapter wires it
-to the EAF S3 workspace bucket (one bucket per environment, IRSA auth).
-
-Used in agent/brain.py — not instantiated directly elsewhere.
+Auth via pod IRSA — no stored credentials.
 """
 
 from __future__ import annotations
@@ -13,11 +9,7 @@ import boto3
 
 
 class S3WorkspaceBackend:
-    """
-    S3 backend for deepagents FilesystemMiddleware.
-    All paths are relative keys inside the workspace bucket.
-    Auth via pod IRSA — no stored credentials.
-    """
+    """S3 backend for deepagents FilesystemMiddleware."""
 
     def __init__(self, bucket: str, region: str = "eu-west-2") -> None:
         self.bucket = bucket
@@ -36,9 +28,7 @@ class S3WorkspaceBackend:
         )
 
     def list(self, prefix: str = "") -> list[str]:
-        resp = self._s3.list_objects_v2(
-            Bucket=self.bucket, Prefix=prefix.lstrip("/")
-        )
+        resp = self._s3.list_objects_v2(Bucket=self.bucket, Prefix=prefix.lstrip("/"))
         return [obj["Key"] for obj in resp.get("Contents", [])]
 
     def exists(self, path: str) -> bool:
