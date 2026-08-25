@@ -71,7 +71,7 @@ def search(session_id: str, query: str, top_k: int = 5) -> list[dict]:
 
     from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-    results = _qdrant.search(
+    results = _qdrant.search(  # type: ignore[union-attr]
         collection_name=COLLECTION,
         query_vector=embed(query),
         query_filter=Filter(

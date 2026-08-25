@@ -50,7 +50,7 @@ class Policy:
 
 def load_policies(directory: Path = POLICIES_DIR) -> list[Policy]:
     """Load all YAML policy files from *directory*."""
-    policies = []
+    policies: list[Policy] = []
     if not directory.exists():
         return policies
     for path in sorted(directory.glob("*.yaml")):
