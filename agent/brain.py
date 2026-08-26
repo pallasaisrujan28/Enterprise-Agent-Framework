@@ -46,8 +46,8 @@ def _build_middleware() -> list:
             from agent.filesystem.s3_backend import S3WorkspaceBackend
 
             middleware.append(
-                FilesystemMiddleware(  # type: ignore[arg-type]
-                    backend=S3WorkspaceBackend(bucket=WORKSPACE_BUCKET, region=REGION),
+                FilesystemMiddleware(
+                    backend=S3WorkspaceBackend(bucket=WORKSPACE_BUCKET, region=REGION),  # type: ignore[arg-type]
                     tools=["read_file", "write_file", "ls"],
                 )
             )
