@@ -58,26 +58,28 @@ jobs:
             --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
             .
 
-      - name: scan image with trivy (table — shows exactly what blocks the build)
+      # Table scan — blocks the build on fixable CRITICAL/HIGH CVEs.
+      # Table format correctly applies ignore-unfixed; SARIF format does not.
+      - name: scan image with trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
           format: table
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
+          ignore-unfixed: true   # only block on CVEs that have a fix available
           scanners: vuln
-          exit-code: 0   # never block here — this step is for visibility only
+          exit-code: 1           # block the build
 
-      - name: scan image with trivy (SARIF — blocks build + reports to Security tab)
+      # SARIF upload — reports all findings to GitHub Security tab (non-blocking).
+      - name: generate trivy SARIF report
         uses: aquasecurity/trivy-action@master
+        if: always()
         with:
           image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
           format: sarif
           output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
           scanners: vuln
-          exit-code: 1   # block the build on fixable CRITICAL/HIGH CVEs
+          exit-code: 0
 
       - name: upload trivy results
         if: always()
