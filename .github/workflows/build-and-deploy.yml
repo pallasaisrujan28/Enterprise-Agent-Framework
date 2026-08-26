@@ -65,10 +65,9 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          ignore-unfixed: true   # skip CVEs with no available fix anywhere
-          exit-code: 1           # block the build — Dockerfile applies apt-get upgrade
-          # so fixable OS CVEs are already patched. If this still blocks,
-          # a NEW CVE with a real fix has appeared — update the base image.
+          ignore-unfixed: true   # skip CVEs with no available fix
+          scanners: vuln         # vulnerability scan only — secret scanner has too many false positives
+          exit-code: 1           # block the build on fixable CRITICAL/HIGH CVEs
 
       - name: upload trivy results
         if: always()
