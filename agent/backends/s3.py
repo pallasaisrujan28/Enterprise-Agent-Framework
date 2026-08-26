@@ -79,7 +79,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
 
         lines = raw.splitlines(keepends=True)
         sliced = lines[offset : offset + limit]
-        return ReadResult(content="".join(sliced), truncated=len(lines) > offset + limit)
+        return ReadResult(  # type: ignore[call-arg]content="".join(sliced), truncated=len(lines) > offset + limit)
 
     async def aread(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
         return await asyncio.to_thread(self.read, file_path, offset, limit)
@@ -93,7 +93,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
             Body=content.encode("utf-8"),
             ContentType="text/plain; charset=utf-8",
         )
-        return WriteResult(path=file_path)
+        return WriteResult(  # type: ignore[call-arg]path=file_path)
 
     async def awrite(self, file_path: str, content: str) -> WriteResult:
         return await asyncio.to_thread(self.write, file_path, content)
@@ -108,7 +108,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
         replace_all: bool = False,
     ) -> EditResult:
         result = self.read(file_path)
-        content = result.content
+        content = result.content  # type: ignore[attr-defined]
         if old_string not in content:
             raise ValueError(
                 f"old_string not found in {file_path}. "
@@ -120,7 +120,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
             else content.replace(old_string, new_string, 1)
         )
         self.write(file_path, new_content)
-        return EditResult(path=file_path)
+        return EditResult(  # type: ignore[call-arg]path=file_path)
 
     async def aedit(
         self, file_path: str, old_string: str, new_string: str, replace_all: bool = False
@@ -131,7 +131,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
 
     def delete(self, file_path: str) -> DeleteResult:
         self._s3.delete_object(Bucket=self.bucket, Key=self._key(file_path))
-        return DeleteResult(path=file_path)
+        return DeleteResult(  # type: ignore[call-arg]path=file_path)
 
     async def adelete(self, file_path: str) -> DeleteResult:
         return await asyncio.to_thread(self.delete, file_path)
@@ -150,7 +150,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
             for obj in resp.get("Contents", [])
             if not obj["Key"].endswith("/") and obj["Key"] != prefix
         ]
-        return LsResult(path=path, dirs=dirs, files=files)
+        return LsResult(  # type: ignore[call-arg]path=path, dirs=dirs, files=files)
 
     async def als(self, path: str) -> LsResult:
         return await asyncio.to_thread(self.ls, path)
@@ -185,11 +185,11 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
                     continue
                 for line_num, line in enumerate(raw.splitlines(), start=1):
                     if compiled.search(line):
-                        matches.append(GrepMatch(file=self._path(key), line=line_num, content=line))
+                        matches.append(GrepMatch(file=  # type: ignore[typeddict-item]self._path(key), line=line_num, content=line))
                         if max_count and len(matches) >= max_count:
-                            return GrepResult(matches=matches)
+                            return GrepResult(  # type: ignore[call-arg]matches=matches)
 
-        return GrepResult(matches=matches)
+        return GrepResult(  # type: ignore[call-arg]matches=matches)
 
     async def agrep(
         self,
@@ -215,7 +215,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
                 if fnmatch.fnmatch(relative, pattern):
                     matched.append(self._path(key))
 
-        return GlobResult(paths=matched)
+        return GlobResult(  # type: ignore[call-arg]paths=matched)
 
     async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
         return await asyncio.to_thread(self.glob, pattern, path)
@@ -226,7 +226,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
         results = []
         for path, data in files:
             self._s3.put_object(Bucket=self.bucket, Key=self._key(path), Body=data)
-            results.append(FileUploadResponse(path=path))
+            results.append(FileUploadResponse(  # type: ignore[call-arg]path=path))
         return results
 
     async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
@@ -236,7 +236,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
         results = []
         for path in paths:
             data = self._s3.get_object(Bucket=self.bucket, Key=self._key(path))["Body"].read()
-            results.append(FileDownloadResponse(path=path, content=data))
+            results.append(FileDownloadResponse(  # type: ignore[call-arg]path=path, content=data))
         return results
 
     async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
