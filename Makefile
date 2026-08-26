@@ -1,11 +1,12 @@
-.PHONY: setup test test-e2e coverage format buildchecks vault clean
+SHELL := /bin/bash
+.PHONY: setup test test-e2e coverage format check buildchecks install-hooks clean
 
-# Deliberately mirrors the ai-chat-infrastructure Makefile: same target names,
-# same uv invocation style. A developer moving between the two repos should not
-# have to learn a second set of commands.
+# ── Local setup ───────────────────────────────────────────────────────────────
 
 setup:
 	uv sync --all-extras
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
 
 test:
 	uv run python -m pytest -v -s --ignore=test/e2e
@@ -16,17 +17,32 @@ test-e2e:
 coverage:
 	uv run python -m pytest --cov=agent --cov-report=term-missing
 
+# ── Code quality ──────────────────────────────────────────────────────────────
+
+# Auto-fix: ruff lint + format in place. Run before committing.
 format:
 	uv run ruff check --fix .
 	uv run ruff format .
 
-# The gate. One script, so `make buildchecks` and CI run the identical thing.
+# Fast check: lint + format only (~3s). Used by pre-push hook.
+# Run 'make format' to auto-fix, then 'make check' to verify.
+check:
+	uv run ruff check .
+	uv run ruff format --check .
+
+# Full gate — same as CI. One target, identical locally and in CI.
+# Runs: pip-audit → ruff → mypy → pytest (with coverage).
 buildchecks:
 	bash ./build-checks.sh
 
-vault:
-	python3 scripts/gen_vault_docs.py
+# ── Git hooks ─────────────────────────────────────────────────────────────────
+
+install-hooks:
+	git config core.hooksPath .githooks
+	@echo "Pre-push hook installed — 'make check' runs before every push."
+
+# ── Housekeeping ──────────────────────────────────────────────────────────────
 
 clean:
-	rm -rf .pytest_cache .ruff_cache
+	rm -rf .pytest_cache .ruff_cache .mypy_cache
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +

@@ -44,11 +44,6 @@ jobs:
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: audit Python dependencies
-        run: |
-          pip install --quiet pip-audit
-          pip-audit
-
       - name: set image tag
         id: meta
         run: |
@@ -63,14 +58,28 @@ jobs:
             --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
             .
 
+      # Table scan — blocks the build on fixable CRITICAL/HIGH CVEs.
+      # Table format correctly applies ignore-unfixed; SARIF format does not.
       - name: scan image with trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true   # only block on CVEs that have a fix available
+          scanners: vuln
+          exit-code: 1           # block the build
+
+      # SARIF upload — reports all findings to GitHub Security tab (non-blocking).
+      - name: generate trivy SARIF report
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
           format: sarif
           output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          exit-code: 1   # fail the build on CRITICAL or HIGH
+          scanners: vuln
+          exit-code: 0
 
       - name: upload trivy results
         if: always()
