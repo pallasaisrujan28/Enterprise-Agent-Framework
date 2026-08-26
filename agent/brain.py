@@ -20,7 +20,10 @@ import os
 from pathlib import Path
 
 from deepagents import create_deep_agent
-from deepagents.middleware import FilesystemMiddleware, TodoListMiddleware
+from deepagents.middleware import (  # type: ignore[attr-defined]
+    FilesystemMiddleware,
+    TodoListMiddleware,
+)
 from langchain_aws import ChatBedrockConverse
 
 from agent.memory.checkpointer import get_checkpointer
@@ -43,7 +46,7 @@ def _build_middleware() -> list:
             from agent.filesystem.s3_backend import S3WorkspaceBackend
 
             middleware.append(
-                FilesystemMiddleware(
+                FilesystemMiddleware(  # type: ignore[arg-type]
                     backend=S3WorkspaceBackend(bucket=WORKSPACE_BUCKET, region=REGION),
                     tools=["read_file", "write_file", "ls"],
                 )
