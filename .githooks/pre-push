@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Pre-push hook — runs automatically before every git push.
+# Install once with: make install-hooks
+#
+# Runs the fast checks (lint + format) only — not the full test suite.
+# The full suite runs in CI. This hook catches the common case (forgot to
+# run 'make format') in 3-5 seconds, before the push leaves your machine.
+#
+# To fix issues: make format && git add -u && git commit --amend
+set -euo pipefail
+
+# Resolve the Python environment the same way CI does.
+if [ ! -d ".venv" ] && [ -z "${CI:-}" ]; then
+  echo "No .venv found. Run 'make setup' first."
+  exit 1
+fi
+
+echo "→ ruff lint..."
+if ! uv run ruff check . 2>&1; then
+  echo ""
+  echo "✗ Lint failed. Run: make format"
+  exit 1
+fi
+
+echo "→ ruff format check..."
+if ! uv run ruff format --check . 2>&1; then
+  echo ""
+  echo "✗ Formatting issues found. Run: make format"
+  echo "  Then: git add -u && git commit --amend"
+  exit 1
+fi
+
+echo "✓ All checks passed."
