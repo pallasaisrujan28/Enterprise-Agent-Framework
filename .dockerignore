@@ -10,5 +10,4 @@ k8s/
 test/
 docs/
 *.md
-uv.lock
 .env
