@@ -55,8 +55,7 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+# No addopts — the Makefile owns verbosity, so `make test` and CI agree.
 
 [tool.mypy]
-# Third-party packages without stubs (boto3, deepagents, langchain_aws, etc.)
-# are excluded from strict import checking. Remove per-package once stubs exist.
 ignore_missing_imports = true
