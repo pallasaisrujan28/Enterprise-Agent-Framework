@@ -58,16 +58,26 @@ jobs:
             --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
             .
 
-      - name: scan image with trivy
+      - name: scan image with trivy (table — shows exactly what blocks the build)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          scanners: vuln
+          exit-code: 0   # never block here — this step is for visibility only
+
+      - name: scan image with trivy (SARIF — blocks build + reports to Security tab)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          ignore-unfixed: true   # skip CVEs with no available fix
-          scanners: vuln         # vulnerability scan only — secret scanner has too many false positives
-          exit-code: 1           # block the build on fixable CRITICAL/HIGH CVEs
+          ignore-unfixed: true
+          scanners: vuln
+          exit-code: 1   # block the build on fixable CRITICAL/HIGH CVEs
 
       - name: upload trivy results
         if: always()
