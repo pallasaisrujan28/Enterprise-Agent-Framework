@@ -1,8 +1,8 @@
-# Use the official uv image — Python 3.12 + uv pre-installed, bookworm-slim base.
+# Official uv image — Python 3.12 + uv pre-installed, bookworm-slim base.
 # No need to pip install uv. Fewer CVEs than python:3.11-slim (newer Python + OS).
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-# curl is not in the base image but needed for the HEALTHCHECK below.
+# curl is not in the base image but needed for the HEALTHCHECK.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl && rm -rf /var/lib/apt/lists/*
 
@@ -19,10 +19,7 @@ RUN uv sync --frozen --no-dev
 
 # Copy source — ordered from least to most frequently changed.
 COPY agent/ ./agent/
-COPY agents/ ./agents/
 COPY skills/ ./skills/
-COPY policies/ ./policies/
-COPY guardrails/ ./guardrails/
 COPY scripts/ ./scripts/
 
 # Non-root user — principle of least privilege inside the container.
@@ -35,5 +32,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 EXPOSE 8080
 
-# Run via the venv Python that uv sync created — no uv run overhead at startup.
+# Run via the venv Python that uv sync created.
 CMD ["/app/.venv/bin/python", "-m", "agent"]
