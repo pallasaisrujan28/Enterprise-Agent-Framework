@@ -65,11 +65,10 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: 0   # report to GitHub Security tab, do not block the build
-          # Blocking on exit-code: 1 means every Debian OS package CVE blocks shipping.
-          # Review vulnerabilities in the Security tab and suppress specific CVEs
-          # with a .trivyignore file when they are accepted/unfixable.
+          ignore-unfixed: true   # skip CVEs with no available fix anywhere
+          exit-code: 1           # block the build — Dockerfile applies apt-get upgrade
+          # so fixable OS CVEs are already patched. If this still blocks,
+          # a NEW CVE with a real fix has appeared — update the base image.
 
       - name: upload trivy results
         if: always()
