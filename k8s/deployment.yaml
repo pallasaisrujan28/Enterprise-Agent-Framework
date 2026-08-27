@@ -20,17 +20,65 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            - name: AWS_DEFAULT_REGION
+              value: eu-west-2
             - name: AWS_REGION
               value: eu-west-2
-            - name: BEDROCK_PRIMARY_MODEL
+
+            # Bedrock model selection
+            - name: BEDROCK_MODEL_ID
               value: anthropic.claude-sonnet-4-6
             - name: BEDROCK_FAST_MODEL
               value: anthropic.claude-haiku-4-5-20251001-v1:0
-            - name: S3_WORKSPACE_BUCKET
+
+            # S3 workspace bucket
+            - name: WORKSPACE_BUCKET
               value: eaf-dev-agent-workspaces-718438899462
+
+            # Tool backends (internal K8s DNS — never leaves cluster)
+            - name: SEARXNG_URL
+              value: http://searxng.tools.svc.cluster.local:8080/search
+            - name: CRAWL4AI_URL
+              value: http://crawl4ai.tools.svc.cluster.local:11235
+            - name: QDRANT_URL
+              value: http://qdrant.tools.svc.cluster.local:6333
+
+            # AgentCore Gateway — set AGENTCORE_GATEWAY_ENDPOINT to switch from
+            # local tool calls to MCP routing via the managed Gateway.
+            # Value comes from the SSM parameter /eaf/dev/gateway/endpoint.
+            # Leave empty to use local tool backends directly (dev fallback).
+            - name: AGENTCORE_GATEWAY_ENDPOINT
+              value: ""  # set after Gateway is provisioned: aws ssm get-parameter --name /eaf/dev/gateway/endpoint
+
+            # Cognito client credentials secret (used when Gateway mode is active).
+            # Terraform SSM: /eaf/dev/gateway/client-creds-secret-arn
+            - name: GATEWAY_CLIENT_CREDS_SECRET
+              value: "eaf-dev/gateway/agent-client-creds"
+
+            # AgentCore Memory — persistent cross-session checkpointing.
+            # Leave empty to use in-process MemorySaver (state lost on pod restart).
+            - name: AGENTCORE_MEMORY_ID
+              value: ""  # set after AgentCore Memory resource is provisioned
+
+            # Context engineering thresholds
+            - name: CONTEXT_COMPACT_AFTER
+              value: "40"
+            - name: CONTEXT_KEEP_RECENT
+              value: "10"
+            - name: SESSION_TOKEN_BUDGET
+              value: "100000"
+            - name: TOOL_REGISTRY_TOP_K
+              value: "4"
+
+            # Bedrock Guardrails (optional ML content safety layer)
+            - name: BEDROCK_GUARDRAIL_ID
+              value: ""  # set after Bedrock Guardrail resource is provisioned
+            - name: BEDROCK_GUARDRAIL_VERSION
+              value: "DRAFT"
+
             # Langfuse — self-hosted in EKS (eu-west-2, data never leaves cluster)
             - name: LANGFUSE_HOST
-              value: "http://langfuse-web.langfuse.svc.cluster.local:3000"
+              value: http://langfuse-web.langfuse.svc.cluster.local:3000
             - name: LANGFUSE_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
@@ -41,6 +89,7 @@ spec:
                 secretKeyRef:
                   name: langfuse-agent-keys
                   key: secret-key
+
           resources:
             requests:
               cpu: 500m
@@ -48,12 +97,14 @@ spec:
             limits:
               cpu: "2"
               memory: 2Gi
+
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 30
+
           readinessProbe:
             httpGet:
               path: /health
