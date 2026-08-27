@@ -58,7 +58,7 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return float(np.dot(va, vb) / denom) if denom else 0.0
 
 
-def _discover_gateway_tools() -> list[BaseTool]:
+def _discover_gateway_tools() -> list:  # type: ignore[return-value]
     """
     Call AgentCore Gateway's MCP ListTools endpoint and return the registered
     tools as LangChain-compatible tool objects.
@@ -139,7 +139,7 @@ class ToolRegistry:
             _Entry(tool=t, embedding=_embed(f"{t.name}: {t.description}")) for t in source
         ]
 
-    def get_relevant_tools(self, task: str) -> list[BaseTool]:
+    def get_relevant_tools(self, task: str) -> list:  # type: ignore[return-value]
         if not self._entries:
             return []
         query_emb = _embed(task)
