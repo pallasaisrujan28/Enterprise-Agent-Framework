@@ -11,7 +11,7 @@ The backend strips that prefix and maps to S3 keys internally.
 Auth: IRSA (pod service account annotation) — no stored credentials.
 """
 
-# mypy: ignore-errors  # deepagents result types have undocumented field names
+# mypy: ignore-errors
 
 from __future__ import annotations
 
