@@ -2,23 +2,28 @@
 Semantic tool registry — selects tools relevant to the current task using
 Bedrock Titan Embeddings instead of passing every tool schema to the model.
 
-Two modes depending on env var configuration:
+Architecture (current — direct):
+  Tools are Python @tool functions registered in brain.py.
+  ToolRegistry embeds their descriptions at startup, picks top-k per turn.
+  Tool calls go directly from the agent to the backend (SearXNG, Crawl4AI, etc).
 
-  LOCAL mode (AGENTCORE_GATEWAY_ENDPOINT not set):
-    Tools are Python @tool functions passed in at construction.
-    Used in development or when Gateway is not yet provisioned.
+Architecture (target — AgentCore Gateway):
+  Tools are registered as MCP servers in AgentCore Gateway (eu-west-2).
+  AgentCore Gateway provides:
+    - Central access control (IAM per tool — who can call what)
+    - Rate limiting and quota enforcement
+    - Full audit trail of every tool invocation
+    - MCP ListTools discovery (new tools appear without a code deploy)
+  ToolRegistry will query the Gateway MCP endpoint at startup to discover
+  tools, embed their descriptions, then rank per turn. Tool calls go:
+    agent → ToolRegistry.get_relevant_tools() → AgentCore Gateway (MCP) → backend
+  Required: AGENTCORE_GATEWAY_ENDPOINT env var pointing to the Gateway URL.
 
-  GATEWAY mode (AGENTCORE_GATEWAY_ENDPOINT set):
-    Tools are discovered dynamically by calling the AgentCore Gateway's
-    MCP ListTools endpoint at startup. This is the production path:
-      - No code deploy needed to add/remove tools
-      - Access controlled per-tool via Cognito scope
-      - Every tool call is audited by the Gateway
-    The MCP tool definitions are wrapped as LangChain tools using
-    langchain-mcp-adapters (MCPToolkit) so create_react_agent works unchanged.
-
-In both modes, Bedrock Titan Embeddings rank tools by relevance to the
-current task and only the top-k are passed to the LangGraph agent.
+Why not a hardcoded list?
+  20 tool schemas on every turn wastes ~2k context tokens and confuses the
+  model with irrelevant options. The registry picks only the top-k most
+  similar to the current task — focused context, better reasoning. Adding
+  a tool only requires registering it (in brain.py now, in Gateway later).
 """
 
 from __future__ import annotations
