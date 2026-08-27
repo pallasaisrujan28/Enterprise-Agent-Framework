@@ -61,7 +61,7 @@ def chat(req: ChatRequest) -> ChatResponse:
             status_code=400, detail=f"Policy violation: {violations[0].description}"
         )
 
-    agent = brain.build_agent(task=safe_input)
+    agent = brain.build_agent()
     result = agent.invoke(
         {"messages": [{"role": "user", "content": safe_input}]},
         config={"configurable": {"thread_id": thread_id}},
