@@ -1,20 +1,17 @@
 [project]
 name = "agent"
 version = "0.0.1"
-description = "Enterprise Agent Framework — agentic AI system with obligation gate, semantic tool registry, and context engineering."
+description = "Enterprise Agent Framework — deepagents harness with EAF-specific tools, memory, and guardrails."
 requires-python = ">=3.11"
 
 # Lower bounds only — uv resolves exact versions into uv.lock.
-# To add a dependency: `uv add <package>` (updates both this file and uv.lock).
-# To update: `uv lock --upgrade-package <package>`.
-# Never edit uv.lock by hand; never pin exact versions here.
+# To add: `uv add <package>`  To update: `uv lock --upgrade-package <package>`
+# Never edit uv.lock by hand.
 dependencies = [
     "PyYAML>=6.0",
-    # LangGraph + LangChain-AWS: ReAct agent graph and Bedrock inference
-    "langgraph>=0.4",
-    "langchain-aws>=0.2",
-    "langchain-core>=0.3",
-    # AWS SDK — IRSA auth, no static credentials
+    # deepagents harness — brings LangGraph, LangChain, and LangChain-AWS with it
+    "deepagents>=0.7",
+    # Bedrock inference (IRSA auth, no stored credentials)
     "boto3>=1.35",
     # Tool backends
     "qdrant-client>=1.9",

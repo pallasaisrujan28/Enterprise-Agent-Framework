@@ -1,28 +1,21 @@
 """
 Agent brain — deepagents harness wired to Bedrock via ChatBedrockConverse.
 
-What this file does:
-  1. Builds the CompositeBackend:
-       /workspace → EAFBackend (S3, persistent workspace)
-       /skills    → FilesystemBackend (pod disk, read-only, baked in image)
-       default    → StateBackend (in-memory scratch, ephemeral)
+Middleware stack (assembled by create_deep_agent + user-supplied):
 
-  2. Calls create_deep_agent with:
-       model      — ChatBedrockConverse (IRSA auth, eu-west-2, no stored creds)
-       backend    — the CompositeBackend above
-       tools      — web_search, fetch_and_store, search_memory
-       middleware — TodoListMiddleware (task tracking)
-       checkpointer — AgentCore or in-process MemorySaver (see memory/checkpointer.py)
-       skills_dir — loads skills/*.md automatically
+  deepagents built-in (always-on, no config needed):
+    FilesystemMiddleware    — read_file, write_file, ls, grep, glob, edit, execute
+    SubAgentMiddleware      — task tool (delegation, isolated sub-agents)
+    SummarizationMiddleware — auto-compacts context when token budget exceeded
+    PatchToolCallsMiddleware— cleans up dangling tool calls (internal)
+    Prompt caching          — Anthropic/Bedrock cache control (automatic)
 
-deepagents wires the rest: skills, task tool (delegation), HITL, file tools.
+  langchain built-in (user-supplied):
+    TodoListMiddleware      — write_todos tool for structured task tracking
+                              from langchain.agents.middleware.todo
 
-Model call path:
-  create_deep_agent → LangGraph StateGraph
-    → ChatBedrockConverse.invoke(messages)
-    → Bedrock bedrock-runtime.eu-west-2.amazonaws.com
-    → anthropic.claude-3-5-sonnet-20241022-v2:0 (or BEDROCK_MODEL_ID)
-  Auth: pod IRSA role → sts:AssumeRoleWithWebIdentity → bedrock:InvokeModel
+  EAF custom middleware:
+    ContentOverflowMiddleware — offloads large tool results to /workspace/
 """
 
 from __future__ import annotations
@@ -33,53 +26,32 @@ from pathlib import Path
 
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
-from deepagents.middleware import TodoListMiddleware
-from langchain_aws import ChatBedrockConverse
+from langchain.agents.middleware.todo import TodoListMiddleware  # type: ignore[import-not-found]
 
 from agent.backends import EAFBackend
 from agent.memory.checkpointer import get_checkpointer
+from agent.middleware.content import ContentOverflowMiddleware
+from agent.model import get_model
 from agent.tools.fetch_and_store import fetch_and_store
 from agent.tools.search_memory import search_memory
 from agent.tools.web_search import web_search
 
-# ── Config ─────────────────────────────────────────────────────────────────────
-
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
 WORKSPACE_BUCKET = os.getenv("WORKSPACE_BUCKET", "")
-
-# skills/ lives at the repo root; baked into the Docker image at /app/skills/
 SKILLS_DIR = str(Path(__file__).parents[1] / "skills")
 
-# Checkpointer built once — AgentCore if AGENTCORE_MEMORY_ID is set,
-# in-process MemorySaver otherwise (state lost on pod restart).
 _checkpointer = get_checkpointer()
-
-
-# ── Backend ────────────────────────────────────────────────────────────────────
 
 
 def _build_backend() -> CompositeBackend:
     """
-    CompositeBackend routes filesystem calls to the right storage by path prefix.
-
-    /workspace  → EAFBackend (S3)
-                  Persistent. Survives pod restarts. Used for reports, outputs,
-                  anything the user or agent wants to keep.
-
-    /skills     → FilesystemBackend (pod disk at /app/skills/)
-                  Read-only. Skills are baked into the Docker image at build time.
-                  The agent can read skills but cannot write to this path.
-
-    default     → StateBackend (LangGraph graph state, RAM)
-                  Ephemeral. Used for /scratch/ temp notes during a single session.
-                  Disappears when the session ends or the pod restarts.
+    /workspace → EAFBackend (S3, persistent)
+    /skills    → FilesystemBackend (pod disk, read-only)
+    default    → StateBackend (RAM, ephemeral scratch)
     """
     if not WORKSPACE_BUCKET:
         warnings.warn(
-            "WORKSPACE_BUCKET env var not set. "
-            "/workspace writes will use in-memory StateBackend (not persistent). "
-            "Set WORKSPACE_BUCKET in k8s/deployment.yaml.",
+            "WORKSPACE_BUCKET not set — /workspace writes use in-memory StateBackend.",
             stacklevel=2,
         )
         workspace_backend: EAFBackend | StateBackend = StateBackend()
@@ -90,46 +62,23 @@ def _build_backend() -> CompositeBackend:
         default=StateBackend(),
         routes={
             "/workspace": workspace_backend,
-            "/skills": FilesystemBackend(root=str(Path(__file__).parents[1])),
+            "/skills": FilesystemBackend(),
         },
     )
 
 
-# ── Agent ──────────────────────────────────────────────────────────────────────
-
-
 def build_agent():
-    """
-    Build and return the EAF agent.
+    """Build the EAF agent. Called once per request — stateless."""
+    backend = _build_backend()
 
-    Called once per request in __main__.py. The agent is stateless —
-    all cross-request state is handled by the checkpointer via thread_id.
-
-    Model call:
-      ChatBedrockConverse → bedrock-runtime.eu-west-2.amazonaws.com
-      Auth: IRSA (no stored credentials in the pod)
-      Model: BEDROCK_MODEL_ID env var (default: claude-3-5-sonnet)
-
-    Returns a compiled LangGraph graph (deepagents harness).
-    Invoke with:
-      agent.invoke(
-          {"messages": [{"role": "user", "content": "..."}]},
-          config={"configurable": {"thread_id": "..."}},
-      )
-    """
     return create_deep_agent(
-        # Model: ChatBedrockConverse calls Bedrock inference endpoint.
-        # IRSA auth — no API keys, no stored credentials.
-        model=ChatBedrockConverse(model=MODEL_ID, region_name=REGION),
-        # Tools: passed to ToolRegistry for semantic selection each turn.
-        # Only top-k most relevant tools reach the model context window.
+        model=get_model(),
         tools=[web_search, fetch_and_store, search_memory],
-        # Backend: CompositeBackend routes /workspace → S3, /skills → pod disk.
-        backend=_build_backend(),
-        # Middleware: TodoListMiddleware gives the agent structured task tracking.
-        middleware=[TodoListMiddleware()],
-        # Checkpointer: persists LangGraph state across requests via thread_id.
+        backend=backend,
+        middleware=[
+            TodoListMiddleware(),
+            ContentOverflowMiddleware(backend=backend),
+        ],
         checkpointer=_checkpointer,
-        # Skills directory: deepagents loads all *.md files from here at startup.
         skills_dir=SKILLS_DIR,
     )

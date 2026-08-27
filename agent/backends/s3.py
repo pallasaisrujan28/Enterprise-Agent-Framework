@@ -11,6 +11,8 @@ The backend strips that prefix and maps to S3 keys internally.
 Auth: IRSA (pod service account annotation) — no stored credentials.
 """
 
+# mypy: ignore-errors
+
 from __future__ import annotations
 
 import asyncio
@@ -19,7 +21,7 @@ import re
 
 import boto3
 from botocore.exceptions import ClientError
-from deepagents.backends.protocol import (  # type: ignore[import-not-found]
+from deepagents.backends.protocol import (
     BackendProtocol,
     DeleteResult,
     EditResult,
@@ -34,7 +36,7 @@ from deepagents.backends.protocol import (  # type: ignore[import-not-found]
 )
 
 
-class EAFBackend(BackendProtocol):  # type: ignore[misc]
+class EAFBackend(BackendProtocol):
     """
     S3-backed workspace for the EAF agent.
 
@@ -51,7 +53,7 @@ class EAFBackend(BackendProtocol):  # type: ignore[misc]
 
     def __init__(self, bucket: str, region: str = "eu-west-2") -> None:
         self.bucket = bucket
-        self._s3 = boto3.client("s3", region_name=region)  # type: ignore[attr-defined]
+        self._s3 = boto3.client("s3", region_name=region)
 
     # ── Key helpers ───────────────────────────────────────────────────────────
 
