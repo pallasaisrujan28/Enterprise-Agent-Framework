@@ -1,9 +1,13 @@
 """
 EAF Agent entry point.
 
-The deepagents harness handles: skills, tools, filesystem, task planning,
-sub-agents, and graph execution. This module adds the EAF-specific envelope:
-  guardrails → policy check → deepagents agent → obligation gate → guardrails
+Request flow per turn:
+  guardrails.check(input)       → block harmful input
+  policies.evaluate(input)      → block policy violations
+  brain.build_agent(task)       → ReAct agent with top-k relevant tools
+  agent.invoke(messages)        → LangGraph loop
+  guardrails.check(output)      → block harmful output
+  → ChatResponse
 """
 
 from __future__ import annotations
@@ -17,10 +21,12 @@ from pydantic import BaseModel
 from agent import brain
 from agent.guardrails import bedrock as guardrails
 from agent.guardrails.bedrock import GuardrailBlocked
+from agent.memory.checkpointer import get_checkpointer
 from agent.policies.loader import evaluate as policy_evaluate
 from agent.policies.loader import load_policies
 
 _POLICIES = load_policies()
+_CHECKPOINTER = get_checkpointer()
 
 app = FastAPI(title="EAF Agent")
 
@@ -44,18 +50,17 @@ def health() -> dict[str, str]:
 def chat(req: ChatRequest) -> ChatResponse:
     thread_id = req.thread_id or str(uuid.uuid4())
 
-    # 1. Guardrail on input (Bedrock Guardrails — optional, no-op if not configured)
     try:
         safe_input = guardrails.check(req.message, source="INPUT")
     except GuardrailBlocked as exc:
         raise HTTPException(status_code=400, detail=f"Input blocked: {exc.reasons}") from exc
 
-    # 2. Platform policy check (regex rules, always-on)
     violations = [v for v in policy_evaluate(safe_input, _POLICIES) if v.action == "deny"]
     if violations:
-        raise HTTPException(status_code=400, detail=f"Policy: {violations[0].description}")
+        raise HTTPException(
+            status_code=400, detail=f"Policy violation: {violations[0].description}"
+        )
 
-    # 3. deepagents: skills + tools + filesystem + sub-agents
     agent = brain.build_agent()
     result = agent.invoke(
         {"messages": [{"role": "user", "content": safe_input}]},
@@ -63,7 +68,6 @@ def chat(req: ChatRequest) -> ChatResponse:
     )
     draft = result["messages"][-1].content
 
-    # 4. Guardrail on output
     try:
         reply = guardrails.check(draft, source="OUTPUT")
     except GuardrailBlocked as exc:
