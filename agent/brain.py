@@ -62,7 +62,7 @@ def _build_backend() -> CompositeBackend:
         default=StateBackend(),
         routes={
             "/workspace": workspace_backend,
-            "/skills": FilesystemBackend(root=str(Path(__file__).parents[1])),  # type: ignore[call-arg],
+            "/skills": FilesystemBackend(),
         },
     )
 
