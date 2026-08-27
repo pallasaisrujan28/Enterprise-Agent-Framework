@@ -1,0 +1,36 @@
+# Platform-level policy rules.
+#
+# These rules are evaluated by agent/policies/loader.py on every input and
+# output. They are distinct from skill obligations (gate.py) — they apply
+# platform-wide, regardless of which skill is active.
+#
+# Rule actions:
+#   deny  — block the input/output and return an error
+#   log   — allow but emit a warning to Langfuse (for tuning before enforcing)
+#
+# Patterns are Python re.search() regex, case-insensitive.
+# Keep patterns specific: a false positive on a deny rule blocks good answers.
+
+name: default
+version: "0.1.0"
+
+rules:
+  - id: no-aws-credentials
+    description: Never output AWS access keys or secret keys
+    action: deny
+    pattern: "(AKIA[0-9A-Z]{16}|(?i)aws.{0,20}secret.{0,20}['\"][A-Za-z0-9/+]{40}['\"])"
+
+  - id: no-api-keys
+    description: Never output generic API keys or tokens
+    action: deny
+    pattern: "(sk-[A-Za-z0-9]{32,}|ghp_[A-Za-z0-9]{36,}|xoxb-[A-Za-z0-9-]+)"
+
+  - id: log-pii-email
+    description: Log (observe) when email addresses appear in output — tune before denying
+    action: log
+    pattern: "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}"
+
+  - id: log-pii-phone
+    description: Log (observe) when UK phone numbers appear in output
+    action: log
+    pattern: "(\\+44|0)[0-9]{9,10}"

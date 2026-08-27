@@ -1,0 +1,47 @@
+# Bedrock Guardrail configuration.
+#
+# This file is loaded by agent/guardrails/bedrock.py at startup.
+# The actual guardrail resource is provisioned in Terraform (workloads/dev).
+# Set BEDROCK_GUARDRAIL_ID to the resource ID to enable ML-based checks.
+#
+# Without BEDROCK_GUARDRAIL_ID, only the regex-based platform policies
+# (policies/default.yaml) are active. The obligation gate (gate.py) is
+# always active regardless of either.
+#
+# Guardrail covers (configured on the Bedrock resource, not here):
+#   - Harmful content filtering (hate, violence, sexual content, insults)
+#   - Prompt attack detection (jailbreak, prompt injection)
+#   - PII detection and redaction in output
+#   - Custom topic blocking (see blocked_topics below — informational only,
+#     actual blocking is configured on the Bedrock resource)
+#
+# This file is informational — it documents what the Bedrock guardrail
+# resource should be configured to block. Terraform provisions the resource;
+# this YAML is the human-readable spec for it.
+
+name: content_safety
+version: "0.1.0"
+
+bedrock_guardrail_id: ${BEDROCK_GUARDRAIL_ID}   # set via env var
+bedrock_guardrail_version: DRAFT
+
+blocked_topics:
+  - name: credential_disclosure
+    definition: >
+      Requests or responses containing AWS credentials, API keys, tokens,
+      passwords, or any form of authentication secret.
+
+  - name: harmful_instructions
+    definition: >
+      Instructions for creating weapons, conducting attacks, or causing
+      harm to individuals or systems.
+
+pii_redaction:
+  # PII in OUTPUT is redacted (replaced with [REDACTED]).
+  # PII in INPUT is passed through — the agent may need to reason about it.
+  entities:
+    - EMAIL
+    - PHONE
+    - UK_NATIONAL_INSURANCE_NUMBER
+    - CREDIT_DEBIT_CARD_NUMBER
+    - AWS_ACCESS_KEY

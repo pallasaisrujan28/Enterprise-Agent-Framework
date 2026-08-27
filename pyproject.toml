@@ -1,38 +1,42 @@
 [project]
 name = "agent"
 version = "0.0.1"
-description = "Enterprise Agent Framework — an agent whose behaviour is bound by published rules, not only by the model's own knowledge."
+description = "Enterprise Agent Framework — deepagents harness with EAF-specific tools, memory, and guardrails."
 requires-python = ">=3.11"
 
-# Upper bounds on every dependency, deliberately. An unbounded `>=` is how a
-# supply-chain compromise or a breaking minor arrives without a review.
+# Lower bounds only — uv resolves exact versions into uv.lock.
+# To add: `uv add <package>`  To update: `uv lock --upgrade-package <package>`
+# Never edit uv.lock by hand.
 dependencies = [
-    "PyYAML>=6.0.2,<7",
+    "PyYAML>=6.0",
+    # deepagents harness — brings LangGraph, LangChain, and LangChain-AWS with it
+    "deepagents>=0.7",
+    # Bedrock inference (IRSA auth, no stored credentials)
+    "boto3>=1.35",
+    # Tool backends
+    "qdrant-client>=1.9",
+    "httpx>=0.27",
+    "numpy>=1.26",
+    # API server
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
 ]
 
 [project.optional-dependencies]
-# Split out so the rule and obligation layer can be developed and tested with
-# no AWS account and no credentials at all.
-bedrock = [
-    "boto3>=1.35.0,<2",
-]
 dev = [
-    # Crossing the major bound deliberately: PYSEC-2026-1845 affects pytest 8.x
-    # and is only fixed in 9.0.3, so no lock move inside `<9` can resolve it.
-    # Reviewed: our usage is fixtures + raises only, nothing 9.x changed.
-    "pytest>=9.0.3,<10",
-    "pytest-cov>=6.0.0,<8",
-    "ruff>=0.16.0,<0.17",
-    "mypy>=1.13.0,<2",
-    "types-PyYAML>=6.0.12,<7",
-    "pip-audit>=2.7.3,<3",
+    "pytest>=9.0.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.13",
+    "types-PyYAML>=6.0",
+    "pip-audit>=2.7",
 ]
 
 [project.scripts]
-agent = "agent.cli:main"
+agent = "agent.__main__:app"
 
 [build-system]
-requires = ["hatchling>=1.25,<2"]
+requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -44,17 +48,12 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-# The formatter owns line length. Keeping E501 on as well makes the two tools
-# disagree on lines the formatter cannot split, and the fight is unwinnable.
 ignore = ["E501"]
 
-# scripts/ runs under the SYSTEM python, which may be older than the package
-# target. Modernisation rules that assume 3.11+ syntax would break it.
 [tool.ruff.lint.per-file-ignores]
 "scripts/*" = ["UP031", "UP032"]
 
 [tool.pytest.ini_options]
-# `test/` not `tests/`, matching the ai-chat-infrastructure layout.
 testpaths = ["test"]
 # No addopts — the Makefile owns verbosity, so `make test` and CI agree.
 
