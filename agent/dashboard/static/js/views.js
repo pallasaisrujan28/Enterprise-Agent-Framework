@@ -3,34 +3,69 @@
  * VIEWS[route](data) returns the HTML for #view. Adding a screen is a key here.
  */
 
+/* Which box the reader last clicked. Kept in a global rather than the URL so a
+ * refresh does not reopen a panel the reader has moved on from. */
+var SELECTED = null;
+
+function showNode(id) {
+  SELECTED = SELECTED === id ? null : id;
+  render();
+}
+
+function detailPanel(data) {
+  if (!SELECTED) {
+    return '<div id="detail">' + uiNotice(
+      "note",
+      "Click any box for the full story behind its status."
+    ) + "</div>";
+  }
+  const node = data.nodes.filter(function (n) { return n.id === SELECTED; })[0];
+  if (!node) { return ""; }
+
+  const evidence = node.evidence === "probed"
+    ? "Checked at runtime."
+    : "Recorded claim — nothing verified this automatically.";
+
+  return '<div id="detail">' + uiCard(
+    "<p>" + esc(node.detail) + "</p>" +
+    '<p class="label">' + esc(evidence) + "</p>",
+    {
+      title: node.label,
+      action: uiBadge(node.status, node.status) + " " + uiBadge(node.group)
+    }
+  ) + "</div>";
+}
+
 function overviewView(data) {
   const counts = data.counts;
   const total = data.nodes.length;
+  const probed = data.nodes.filter(function (n) { return n.evidence === "probed"; }).length;
 
   const band = uiStatBand([
     { n: counts.built, label: "built" },
     { n: counts.partial, label: "partial" },
     { n: counts.broken, label: "broken" },
     { n: counts.missing, label: "missing" },
-    { n: total, label: "components" }
+    { n: probed + "/" + total, label: "verified" }
   ]);
 
-  /* Stated rather than implied. A reader should know that a green box on this
-   * chart may be a claim nobody checked. */
-  const probed = data.nodes.filter(function (n) { return n.evidence === "probed"; }).length;
-  const honesty = uiNotice(
-    "note",
-    "This chart is rendered from <code>/api/topology</code>, not drawn by hand, so " +
-    "a component cannot appear here without a status and a reason. " +
-    "<strong>" + esc(probed) + " of " + esc(total) + "</strong> statuses were " +
-    "verified at runtime; the rest are claims recorded in " +
-    "<code>agent/dashboard/topology.py</code>."
+  const chart = uiCard(
+    '<div id="chart">' + archSVG(data) + "</div>",
+    {
+      title: "Architecture — click any box",
+      action: uiBadge(data.generated_at + " UTC")
+    }
   );
 
-  const chart = uiCard('<div id="chart">' + archSVG(data) + "</div>", {
-    title: "Architecture",
-    action: uiBadge(data.generated_at + " UTC")
-  });
+  /* Stated rather than implied: a green box on this chart may be a claim that
+   * nothing checked. Saying so is what stops the chart becoming decoration. */
+  const honesty = uiNotice(
+    "note",
+    "Rendered from <code>/api/topology</code> — a component cannot appear here " +
+    "without a status and a reason. <strong>" + esc(probed) + " of " + esc(total) +
+    "</strong> statuses were verified at runtime; the rest are claims recorded in " +
+    "<code>agent/dashboard/topology.py</code>. Dashed boxes are not built yet."
+  );
 
   const order = { broken: 0, partial: 1, missing: 2, built: 3 };
   const rows = data.nodes
@@ -49,13 +84,15 @@ function overviewView(data) {
     });
 
   const table = uiCard(
-    uiTable(["status", "component", "group", "what is actually true"], rows),
+    uiTable(["status", "component", "band", "what is actually true"], rows),
     { title: "Components", action: uiBadge("worst first") }
   );
 
   return "<h1>Overview</h1>" +
-    '<p class="subtitle">What exists, what is half-built, and what is only a plan.</p>' +
-    band + honesty + chart + table + footerNote();
+    '<p class="subtitle">Four lanes, top to bottom. The harness runs one turn; ' +
+    'the tool path is how a tool gets chosen, narrowed and run; memory is what ' +
+    'survives the turn; ops is the offline loop. Faint lines are long-range.</p>' +
+    band + honesty + chart + detailPanel(data) + table + footerNote();
 }
 
 function chatView() {
@@ -63,9 +100,10 @@ function chatView() {
     '<p class="subtitle">Not implemented.</p>' +
     uiNotice(
       "warn",
-      "There is no chat endpoint yet. It is tracked as <strong>KAN-9</strong> and needs " +
-      "<code>POST /api/chat/stream</code> plus the orchestrator's own entry point — " +
-      "this view will call the same path the CLI does, never a private one."
+      "There is no chat endpoint yet — <strong>KAN-9</strong>. It needs a model behind " +
+      "the proxy seam (KAN-11) and credentials through the resolver (KAN-10) first, " +
+      "because a chat box streaming a hardcoded reply would be a stub presented as " +
+      "working. When it lands it will call the same entry point the CLI uses."
     ) + footerNote();
 }
 

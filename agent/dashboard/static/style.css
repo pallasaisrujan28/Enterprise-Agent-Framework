@@ -160,9 +160,18 @@ tr:last-child td { border-bottom: none; }
 
 /* ── the architecture diagram ────────────────────────────────────────────── */
 
-#chart { width: 100%; overflow-x: auto; }
-#chart svg { display: block; }
+#chart { width: 100%; overflow-x: auto; padding-bottom: var(--space-2); }
+/* Scale to fit rather than scroll. The chart is a little over 1300px wide and a
+   card is usually narrower, so at 1:1 the reply — the END of the request path —
+   sat off-screen until you scrolled, which defeats the point of a chart.
+   `min-width` keeps a floor: below that it goes back to scrolling rather than
+   shrinking the type past reading size. */
+#chart svg { display: block; max-width: 100%; height: auto; min-width: 960px; }
 
+/* Bands are a tinted REGION, not a dashed outline. They were dashed, and so are
+   half the edges — four dashed rectangles of routing read as four more bands. A
+   fill says "region" in a way a border cannot be confused with a line. */
+.g-box { fill: var(--surface-sunken); fill-opacity: 0.6; stroke: var(--rule); }
 .g-label {
   font-family: var(--face-mono);
   font-size: 10px;
@@ -170,22 +179,54 @@ tr:last-child td { border-bottom: none; }
   fill: var(--text-muted);
   text-transform: uppercase;
 }
-.g-box { fill: none; stroke: var(--rule); stroke-dasharray: 3 3; }
 
-.n-box { fill: var(--surface-raised); stroke: var(--rule-hard); rx: 5; }
+/* boxes — the border carries the status, so colour is never the only signal:
+   `missing` is also dashed, and every box repeats its status in the table. */
+.n-box { fill: var(--surface-raised); stroke: var(--rule-hard); stroke-width: 1; }
 .n-box[data-status="built"]   { stroke: var(--ok); }
 .n-box[data-status="partial"] { stroke: var(--warn); }
-.n-box[data-status="broken"]  { stroke: var(--bad); }
-.n-box[data-status="missing"] { stroke: var(--rule); stroke-dasharray: 4 3; }
+.n-box[data-status="broken"]  { stroke: var(--bad); stroke-width: 2; }
+.n-box[data-status="missing"] { stroke: var(--note); stroke-dasharray: 5 4; }
+.n-box[data-emphasis="true"]  { fill: var(--surface-sunken); stroke-width: 2; }
 
-.n-label { font-size: 11px; fill: var(--text-strong); font-weight: var(--weight-medium); }
-.n-status { font-family: var(--face-mono); font-size: 9px; fill: var(--text-muted); }
+.n-label {
+  font-size: 12px;
+  fill: var(--text-strong);
+  font-weight: var(--weight-medium);
+  text-anchor: middle;
+}
+.n-caption {
+  font-family: var(--face-mono);
+  font-size: 9.5px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
 
-.e-line { stroke: var(--rule-hard); fill: none; }
+/* edges */
+.e-line { stroke: var(--rule-hard); fill: none; stroke-width: 1.2; }
 .e-line[data-kind="dashed"] { stroke-dasharray: 4 3; }
+/* Long-range connectors — the offline loop — recede, so the request path reads
+   first. They still carry a label; they just stop shouting. */
+.e-line[data-range="far"] { stroke: var(--rule); stroke-width: 1; opacity: 0.6; }
+.e-head { fill: var(--rule-hard); stroke: none; }
+.e-label-bg { fill: var(--surface-page); stroke: none; }
+.e-label {
+  font-family: var(--face-mono);
+  font-size: 9px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
 
 .node-group { cursor: pointer; }
-.node-group:hover .n-box { stroke-width: 2; }
+.node-group:hover .n-box { stroke-width: 2.5; }
+.node-group:focus { outline: none; }
+.node-group:focus .n-box { stroke: var(--accent); stroke-width: 2.5; }
+
+/* the click-through detail panel */
+#detail { margin-bottom: var(--space-4); }
+#detail .card { border-color: var(--rule-hard); }
+#detail p { margin: 0 0 var(--space-2); }
+#detail p:last-child { margin-bottom: 0; }
 
 footer {
   margin-top: var(--space-8);
