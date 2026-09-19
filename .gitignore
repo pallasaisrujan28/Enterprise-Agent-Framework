@@ -27,3 +27,7 @@ test-reports/
 .env
 .env.*
 !.env.example
+
+# MCP server config holds API tokens in its env block. Steering and specs under
+# .kiro ARE committed; this one file must not be.
+.kiro/settings/mcp.json
