@@ -1,0 +1,101 @@
+/* Design tokens — ours.
+ *
+ * Written rather than copied. waku-agent's design system (its tokens.css,
+ * controls.css and mark) is covered by LICENSE-BRAND, not MIT: "you may not
+ * use these files ... in another product or service" without written
+ * permission. Its Python and JS are MIT and were a reference for structure;
+ * none of its CSS is reproduced here.
+ *
+ * Rules that go with these tokens:
+ *   - every value in style.css comes from a token here, never a literal
+ *   - no shadows; separate things with a 1px rule
+ *   - system font stacks, so nothing is fetched from the network and there is
+ *     no font licence to track. Revisit only if the type becomes the point.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* type */
+  --face-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --face-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --text-xs: 0.6875rem;   /* 11px — labels, meta */
+  --text-sm: 0.8125rem;   /* 13px — body default  */
+  --text-base: 0.9375rem; /* 15px                 */
+  --text-lg: 1.125rem;    /* 18px                 */
+  --text-xl: 1.5rem;      /* 24px — view titles   */
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+
+  --leading-tight: 1.25;
+  --leading-body: 1.55;
+
+  --tracking-label: 0.08em;
+
+  /* spacing — between things */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* shape */
+  --radius: 6px;
+  --shape-chip: 999px;
+  --shape-circle: 50%;
+
+  /* motion */
+  --motion-fast: 120ms;
+
+  /* layout */
+  --sidebar-width: 216px;
+}
+
+/* Dark is the default, because this is an operations view that sits open. */
+:root {
+  --surface-page: #14161a;
+  --surface-raised: #1b1e23;
+  --surface-sunken: #101215;
+
+  --text-strong: #eceef1;
+  --text-body: #c3c8cf;
+  --text-muted: #868d97;
+
+  --rule: #2a2f36;
+  --rule-hard: #3b424b;
+
+  --accent: #4c8dff;
+  --accent-fg: #8fb7ff;
+
+  /* status — the four the topology uses, and nothing else */
+  --ok: #4ba36a;
+  --warn: #c79a3a;
+  --bad: #cc5b52;
+  --note: #6f7885;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --surface-page: #ffffff;
+    --surface-raised: #f7f8fa;
+    --surface-sunken: #eef0f3;
+
+    --text-strong: #14161a;
+    --text-body: #3c434c;
+    --text-muted: #6b727c;
+
+    --rule: #e2e5ea;
+    --rule-hard: #c8cdd4;
+
+    --accent: #2b6fdc;
+    --accent-fg: #1d51a3;
+
+    --ok: #2f7d4a;
+    --warn: #96701d;
+    --bad: #b03d34;
+    --note: #767d88;
+  }
+}

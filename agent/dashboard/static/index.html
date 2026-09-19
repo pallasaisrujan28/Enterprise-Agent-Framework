@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enterprise Agent Framework</title>
+  <link rel="stylesheet" href="/design/tokens.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav id="sidebar">
+    <div id="brand">Enterprise Agent Framework</div>
+    <div id="nav">
+      <a href="#overview" data-enabled="true">Overview</a>
+      <a href="#chat" data-enabled="false">Chat <span class="badge">KAN-9</span></a>
+    </div>
+  </nav>
+
+  <main id="view">
+    <p class="subtitle">loading…</p>
+  </main>
+
+  <!--
+    Classic scripts sharing one global scope, loaded in dependency order.
+    main.js runs the bootstrap and must load LAST.
+    No modules, no bundler, no framework — the dashboard should run with
+    nothing installed.
+  -->
+  <script src="/js/util.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/diagram.js"></script>
+  <script src="/js/views.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>
