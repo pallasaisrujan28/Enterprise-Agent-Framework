@@ -15,7 +15,12 @@ import os
 from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
+# Summarising is exactly the cheap, mechanical work the FAST model exists for, so
+# this reads BEDROCK_FAST_MODEL rather than BEDROCK_MODEL_ID. It previously
+# defaulted to an Anthropic id that does not exist in eu-west-2, and pointed at
+# the expensive variable on top of that — compaction runs on long sessions, which
+# is the worst place to be paying flagship rates for a summary.
+MODEL_ID = os.getenv("BEDROCK_FAST_MODEL", "amazon.nova-lite-v1:0")
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
 
 COMPACT_AFTER = int(os.getenv("CONTEXT_COMPACT_AFTER", "40"))

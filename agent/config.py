@@ -45,11 +45,14 @@ Provider = Literal["bedrock", "echo"]
 
 DEFAULT_REGION = "eu-west-2"
 
-# Verified invocable on eu-west-2 on 2026-09-19, by calling Converse and reading
-# the reply. NOT chosen from documentation: `anthropic.claude-sonnet-4-6`, which
-# k8s/deployment.yaml still named, fails with AccessDeniedException on this
-# account, and every Anthropic id fails the same way. Pick from the list in
-# docs or from `agent models` output, never from memory.
+# Verified invocable in eu-west-2 by calling Converse and reading the reply, not
+# chosen from documentation. Every Anthropic id that the repo previously defaulted
+# to failed: two on billing (INVALID_PAYMENT_INSTRUMENT, unfixable by permissions)
+# and one that does not exist in this region at all.
+#
+# agent.models.verified_models is the authoritative list. Pick from there, and if
+# a model is not on it, call it before you trust it — Bedrock lists 46 text models
+# here and only 43 answer.
 DEFAULT_MODEL = "openai.gpt-oss-120b-1:0"
 
 # The cheap model, for work that is not the answer: a retrieval-gate judge, a
