@@ -64,37 +64,31 @@ def check_qdrant() -> bool:
         )
 
 
-def check_searxng() -> bool:
-    """Asks for JSON specifically, because that is the setting that breaks."""
-    url = os.getenv("SEARXNG_URL", "http://localhost:8080/search")
-    try:
-        import httpx
+def check_search() -> bool:
+    """The web-search backend, making the same call web_search makes.
 
-        r = httpx.get(url, params={"q": "bedrock", "format": "json"}, timeout=20)
-        if r.status_code == 403:
-            return result(
-                "searxng",
-                False,
-                "403 on format=json",
-                "ops/searxng/settings.yml needs json in search.formats, "
-                "then: docker compose restart searxng",
-            )
-        r.raise_for_status()
-        hits = r.json().get("results", [])
+    Whichever backend is configured — duckduckgo by default, needing no
+    container. A real query, because the failure worth catching is an empty
+    result set (a blocked scrape, a rate limit), which only a live call reveals.
+    """
+    try:
+        from agent.tools import search_backend
+
+        hits = search_backend.search("amazon bedrock", max_results=5)
+        name = search_backend.backend_name()
         if not hits:
             return result(
-                "searxng",
+                f"search ({name})",
                 False,
-                "JSON works but zero results",
-                "engines may be rate-limiting; retry, or check server.limiter is false",
+                "zero results",
+                "duckduckgo may be rate-limiting; retry, or set "
+                "SEARCH_BACKEND=searxng with the container up",
             )
-        return result("searxng", True, f"{len(hits)} results — {hits[0]['url'][:52]}")
+        return result(f"search ({name})", True, f"{len(hits)} results — {hits[0]['url'][:48]}")
     except ImportError as exc:
-        return missing_package("searxng", exc)
+        return missing_package("search", exc)
     except Exception as exc:
-        return result(
-            "searxng", False, f"{url} — {type(exc).__name__}: {exc}", "docker compose up -d searxng"
-        )
+        return result("search", False, f"{type(exc).__name__}: {str(exc)[:90]}")
 
 
 def check_minio() -> bool:
@@ -228,7 +222,7 @@ def check_turn() -> bool:
 def main() -> int:
     print("Local stack check — each line makes the same call the application makes.\n")
     print(" containers:")
-    container_ok = all([check_qdrant(), check_searxng(), check_minio(), check_fetch()])
+    container_ok = all([check_qdrant(), check_search(), check_minio(), check_fetch()])
     print("\n not a container, by decision (ADR-011):")
     remote_ok = check_bedrock()
     print("\n end to end:")

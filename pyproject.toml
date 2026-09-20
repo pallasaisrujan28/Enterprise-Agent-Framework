@@ -31,6 +31,10 @@ dependencies = [
     # markdown from raw HTML with no browser and no service. See
     # agent/tools/fetch_backend.py for why this exists alongside Firecrawl.
     "trafilatura>=1.12",
+    # DuckDuckGo search for the `duckduckgo` search backend — no service, no key.
+    # The maintained library rather than a raw HTML scrape, which DuckDuckGo now
+    # blocks. See agent/tools/search_backend.py.
+    "ddgs>=9.0",
 ]
 
 [project.optional-dependencies]

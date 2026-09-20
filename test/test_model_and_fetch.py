@@ -94,10 +94,54 @@ def test_direct_scrape_raises_fetcherror_on_empty_page(monkeypatch: Any) -> None
     assert "JavaScript" in str(caught.value)
 
 
-def test_backend_is_selected_by_config(monkeypatch: Any) -> None:
+def test_fetch_backend_is_selected_by_config(monkeypatch: Any) -> None:
     from agent.tools import fetch_backend
 
     monkeypatch.setattr(fetch_backend, "FETCH_BACKEND", "firecrawl")
     assert fetch_backend.backend_name() == "firecrawl"
     monkeypatch.setattr(fetch_backend, "FETCH_BACKEND", "direct")
     assert fetch_backend.backend_name() == "direct"
+
+
+# ── search backend ───────────────────────────────────────────────────────────
+
+
+def test_search_backend_is_selected_by_config(monkeypatch: Any) -> None:
+    from agent.tools import search_backend
+
+    monkeypatch.setattr(search_backend, "SEARCH_BACKEND", "searxng")
+    assert search_backend.backend_name() == "searxng"
+    monkeypatch.setattr(search_backend, "SEARCH_BACKEND", "duckduckgo")
+    assert search_backend.backend_name() == "duckduckgo"
+
+
+def test_duckduckgo_results_are_normalised_to_the_tool_shape(monkeypatch: Any) -> None:
+    """ddgs returns title/href/body; the tool renders title/url/snippet. The
+    adapter must map href->url and body->snippet, or web_search shows blanks."""
+    from agent.tools import search_backend
+
+    class FakeDDGS:
+        def text(self, *_a: Any, **_k: Any) -> list[dict[str, str]]:
+            return [{"title": "Bedrock", "href": "https://aws.example/b", "body": "managed"}]
+
+    monkeypatch.setattr(search_backend, "SEARCH_BACKEND", "duckduckgo")
+    monkeypatch.setitem(__import__("sys").modules, "ddgs", type("M", (), {"DDGS": FakeDDGS}))
+
+    hits = search_backend.search("bedrock", max_results=3)
+    assert hits == [{"title": "Bedrock", "url": "https://aws.example/b", "snippet": "managed"}]
+
+
+def test_search_error_when_ddgs_raises(monkeypatch: Any) -> None:
+    """A blocked or rate-limited search must be a SearchError the tool layer can
+    turn into a message, not an exception that ends the turn."""
+    from agent.tools import search_backend
+
+    class BoomDDGS:
+        def text(self, *_a: Any, **_k: Any) -> list[dict[str, str]]:
+            raise RuntimeError("rate limited")
+
+    monkeypatch.setattr(search_backend, "SEARCH_BACKEND", "duckduckgo")
+    monkeypatch.setitem(__import__("sys").modules, "ddgs", type("M", (), {"DDGS": BoomDDGS}))
+
+    with pytest.raises(search_backend.SearchError):
+        search_backend.search("anything")

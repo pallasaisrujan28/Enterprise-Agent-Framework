@@ -73,6 +73,7 @@ The mapping as it stands. Verify against the pinned version before relying on a 
 | Human-in-the-loop approval | `HumanInTheLoopMiddleware` via `create_deep_agent(interrupt_on=...)` |
 | Judge-scored evaluation | `middleware.RubricMiddleware` |
 | Per-turn tracing / the observer | LangGraph `.stream(stream_mode=...)`, `backends.langsmith` |
+| Web search / page fetch (waku's `search_web`) | no deepagents component — a config-selected backend: `search_backend.py` (ddgs / SearXNG), `fetch_backend.py` (trafilatura / Firecrawl) |
 | Durable threads | `create_deep_agent(checkpointer=...)` |
 
 ### waku concepts with no deepagents component — custom is correct here
