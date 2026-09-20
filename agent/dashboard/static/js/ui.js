@@ -30,24 +30,11 @@ function uiNotice(level, html) {
   return '<div class="notice" data-level="' + esc(level) + '">' + html + '</div>';
 }
 
-/* items: [{n, label}] — a view's headline numbers. */
-function uiStatBand(items) {
-  const cells = items.map(function (item) {
-    return '<div><span class="n">' + esc(item.n) + '</span>' +
-           '<span class="label">' + esc(item.label) + '</span></div>';
-  });
-  return '<div class="statband">' + cells.join("") + '</div>';
-}
-
-/* columns: [string]; rows: [[cellHtml]] — cells are already-escaped HTML. */
-function uiTable(columns, rows, options) {
-  const opts = options || {};
-  if (!rows.length) {
-    return uiNotice("note", esc(opts.empty || "Nothing to show."));
-  }
-  const head = columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join("");
-  const body = rows.map(function (row) {
-    return '<tr>' + row.join("") + '</tr>';
-  }).join("");
-  return '<table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>';
-}
+/* `uiStatBand` and `uiTable` were removed with the overview's stat band and
+ * components table. They had no other caller, and an unused primitive is not a
+ * primitive — it is dead code that the next person has to read and decide about.
+ * Both are three lines to write again from the git history if a view needs them.
+ *
+ * Note that table STYLING stays in style.css: the chat renders markdown tables,
+ * which are real <table> elements built by js/chat.js rather than by a
+ * primitive. */

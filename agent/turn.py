@@ -291,7 +291,12 @@ def _judge_for(config: Config, injected_model: ChatModel | None) -> ChatModel | 
         return None
 
 
-def build_system_prompt(skillset: SkillSet, triggered: tuple[Skill, ...]) -> str:
+def build_system_prompt(
+    skillset: SkillSet,
+    triggered: tuple[Skill, ...],
+    model: str = "",
+    provider: str = "",
+) -> str:
     """Assemble the system prompt — this is "working memory" on the chart.
 
     Order is deliberate and is the cheap half of context engineering: the stable
@@ -304,6 +309,27 @@ def build_system_prompt(skillset: SkillSet, triggered: tuple[Skill, ...]) -> str
     model knows what exists, full procedure only for what is in play.
     """
     parts = [PERSONA]
+
+    # A MODEL DOES NOT KNOW WHAT MODEL IT IS, and will confidently say otherwise.
+    # Asked "what model is this", gpt-oss-120b answered "I'm ChatGPT, built on
+    # OpenAI's GPT-4 architecture" — it has no introspective access to its own
+    # identity, so it pattern-matches the question against a training corpus full
+    # of ChatGPT transcripts. The harness knows the true answer and was simply
+    # not passing it on.
+    #
+    # Sits with the persona rather than near the clock because it is stable for
+    # the conversation, so it stays inside the cacheable prefix. Switching model
+    # mid-conversation invalidates that prefix, which is correct — it is a
+    # different model.
+    if model:
+        parts.append(
+            f"You are running on the model `{model}`"
+            + (f", served via {provider}" if provider else "")
+            + ". If you are asked which model or which provider you are, answer "
+            "with exactly that. Do NOT infer it from your training data: models "
+            "have no introspective access to their own identity and reliably "
+            "misreport it."
+        )
 
     if skillset.skills:
         parts.append("Skills available to you:\n" + skillset.index_block())
@@ -392,7 +418,7 @@ def respond(
     skillset = load_skills(resolved)
     router = judge or _judge_for(resolved, model)
     triggered, trigger_reason = _trigger(message, skillset, resolved, router)
-    system = build_system_prompt(skillset, triggered)
+    system = build_system_prompt(skillset, triggered, llm.name, resolved.provider)
 
     yield Event(
         "start",

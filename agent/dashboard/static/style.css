@@ -2,10 +2,19 @@
 
 * { box-sizing: border-box; }
 
+/* Three columns, and only the MIDDLE one scrolls.
+ *
+ * The page used to scroll as one document, which took the nav and the chat out
+ * of view as soon as you moved down the diagram — and the chat is the thing you
+ * are most likely to want while reading it. So the body is pinned to the
+ * viewport and each column owns its own overflow. The dock can then keep its
+ * composer glued to the bottom, which is only possible if the dock itself never
+ * scrolls. */
 body {
   margin: 0;
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--surface-page);
   color: var(--text-body);
   font: var(--weight-normal) var(--text-sm)/var(--leading-body) var(--face-sans);
@@ -22,6 +31,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  /* Fixed to the viewport. `overflow-y: auto` rather than `hidden` so a longer
+     nav can still be reached rather than being silently cut off. */
+  height: 100vh;
+  overflow-y: auto;
 }
 
 #brand {
@@ -56,7 +69,14 @@ body {
 
 /* ── main ────────────────────────────────────────────────────────────────── */
 
-main { flex: 1; padding: var(--space-8); min-width: 0; }
+/* The one scrolling pane. */
+main {
+  flex: 1;
+  padding: var(--space-8);
+  min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
 
 h1 {
   margin: 0 0 var(--space-2);
@@ -112,20 +132,6 @@ h1 {
 .badge[data-variant="partial"] { color: var(--warn); border-color: var(--warn); }
 .badge[data-variant="broken"]  { color: var(--bad);  border-color: var(--bad); }
 .badge[data-variant="missing"] { color: var(--note); border-color: var(--rule-hard); }
-
-.statband {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-  margin-bottom: var(--space-6);
-}
-.statband > div > .n {
-  display: block;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-medium);
-  color: var(--text-strong);
-  line-height: var(--leading-tight);
-}
 
 .notice {
   border: 1px solid var(--rule);
@@ -228,14 +234,6 @@ tr:last-child td { border-bottom: none; }
 #detail p { margin: 0 0 var(--space-2); }
 #detail p:last-child { margin-bottom: 0; }
 
-footer {
-  margin-top: var(--space-8);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
 /* ── the chat dock ───────────────────────────────────────────────────────────
    A third column, not an overlay. An overlay would cover the architecture, and
    having both on screen at once is the entire reason the chat is docked. */
@@ -247,10 +245,11 @@ footer {
   background: var(--surface-sunken);
   display: flex;
   flex-direction: column;
-  /* The dock scrolls internally; the page does not scroll it. */
+  /* The dock itself never scrolls — only .chatlog inside it does. That is what
+     keeps the composer pinned to the bottom and the header to the top. Sticky is
+     no longer needed now that the body does not scroll. */
   height: 100vh;
-  position: sticky;
-  top: 0;
+  overflow: hidden;
 }
 
 .dockhead {
