@@ -29,12 +29,14 @@ import os
 
 import httpx
 
-SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "duckduckgo").strip().lower()
+from agent.tools._backend import BackendError, chosen
+
+SEARCH_BACKEND = chosen("SEARCH_BACKEND", "duckduckgo", {"duckduckgo", "searxng"})
 
 SEARXNG_URL = os.getenv("SEARXNG_URL", "http://searxng.tools.svc.cluster.local:8080/search")
 
 
-class SearchError(RuntimeError):
+class SearchError(BackendError):
     """A search failed in a way the tool reports to the model, not raises."""
 
 
@@ -82,4 +84,4 @@ def search(query: str, max_results: int = 10) -> list[dict[str, str]]:
 
 
 def backend_name() -> str:
-    return "searxng" if SEARCH_BACKEND == "searxng" else "duckduckgo"
+    return SEARCH_BACKEND

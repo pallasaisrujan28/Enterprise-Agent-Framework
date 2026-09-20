@@ -32,7 +32,9 @@ import os
 
 import httpx
 
-FETCH_BACKEND = os.getenv("FETCH_BACKEND", "direct").strip().lower()
+from agent.tools._backend import BackendError, chosen
+
+FETCH_BACKEND = chosen("FETCH_BACKEND", "direct", {"direct", "firecrawl"})
 
 FIRECRAWL_URL = os.getenv("FIRECRAWL_URL", "http://firecrawl-api.tools.svc.cluster.local:3002")
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "internal")
@@ -41,13 +43,8 @@ FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "internal")
 _UA = "Mozilla/5.0 (compatible; EAF-agent/0.1; +local)"
 
 
-class FetchError(RuntimeError):
-    """A fetch failed in a way the tool should report to the model, not raise.
-
-    The tool layer turns this into an "Error running ..." observation via
-    ToolErrorMiddleware, so the model can read it and carry on rather than the
-    turn ending.
-    """
+class FetchError(BackendError):
+    """A fetch failed in a way the tool reports to the model, not raises."""
 
 
 # ── the direct backend: httpx + trafilatura, no service ──────────────────────
@@ -188,4 +185,4 @@ def crawl(url: str, max_pages: int) -> list[tuple[str, str]]:
 
 
 def backend_name() -> str:
-    return "firecrawl" if FETCH_BACKEND == "firecrawl" else "direct"
+    return FETCH_BACKEND
