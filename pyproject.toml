@@ -27,6 +27,10 @@ dependencies = [
     # API server
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
+    # Static page extraction for the `direct` fetch backend — clean article
+    # markdown from raw HTML with no browser and no service. See
+    # agent/tools/fetch_backend.py for why this exists alongside Firecrawl.
+    "trafilatura>=1.12",
 ]
 
 [project.optional-dependencies]

@@ -131,6 +131,29 @@ def check_minio() -> bool:
         )
 
 
+def check_fetch() -> bool:
+    """The fetch backend, making the same call fetch_and_store makes.
+
+    Uses `direct` locally (httpx + trafilatura), so this needs no Firecrawl. A
+    real page rather than a stub, because the failure mode worth catching is
+    "extracted nothing", which only a real page reveals.
+    """
+    try:
+        from agent.tools import fetch_backend
+
+        md = fetch_backend.scrape("https://en.wikipedia.org/wiki/Amazon_Bedrock")
+        return result(
+            "fetch (%s)" % fetch_backend.backend_name(),
+            len(md) > 200,
+            f"extracted {len(md)} chars of markdown",
+            "" if len(md) > 200 else "extraction returned almost nothing",
+        )
+    except ImportError as exc:
+        return missing_package("fetch", exc)
+    except Exception as exc:
+        return result("fetch", False, f"{type(exc).__name__}: {str(exc)[:90]}")
+
+
 def check_bedrock() -> bool:
     """The one thing that is NOT local, by decision (ADR-011)."""
     try:
@@ -205,7 +228,7 @@ def check_turn() -> bool:
 def main() -> int:
     print("Local stack check — each line makes the same call the application makes.\n")
     print(" containers:")
-    container_ok = all([check_qdrant(), check_searxng(), check_minio()])
+    container_ok = all([check_qdrant(), check_searxng(), check_minio(), check_fetch()])
     print("\n not a container, by decision (ADR-011):")
     remote_ok = check_bedrock()
     print("\n end to end:")
@@ -214,7 +237,8 @@ def main() -> int:
     print()
     if container_ok and remote_ok and turn_ok:
         print("All green. The local stack is a fair test of the features that exist.")
-        print("Firecrawl is still absent, so fetch_and_store and crawl_site are untested.")
+        print("Page fetching uses the `direct` backend (no JavaScript); switch")
+        print("FETCH_BACKEND=firecrawl with a real Firecrawl for client-rendered pages.")
         return 0
     print("Not green. Fix the FAILs above before trusting a local result.")
     return 1

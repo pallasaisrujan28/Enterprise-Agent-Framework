@@ -19,13 +19,15 @@
 # gate for a component that does not exist. They arrive with their consumers.
 #
 #   covered      web_search (SearXNG) · search_memory and session working memory
-#                (Qdrant) · workspace read/write (MinIO over the S3 API)
-#   NOT covered  fetch_and_store and crawl_site. They call Firecrawl's /v1/scrape,
-#                and self-hosting Firecrawl is its own multi-service compose
-#                project rather than one pinned image. Run theirs alongside and
-#                point FIRECRAWL_URL at it. Until then those two tools fail
-#                against a local stack, which is stated here rather than left to
-#                a confusing timeout.
+#                (Qdrant) · workspace read/write (MinIO over the S3 API) ·
+#                fetch_and_store / crawl_site via the `direct` fetch backend
+#                (httpx + trafilatura, in-process — no container needed)
+#
+# Page fetching needs NO service locally. Firecrawl self-hosting is six services
+# (api, worker, Playwright, Redis, Postgres, RabbitMQ), so instead FETCH_BACKEND
+# selects the implementation (agent/tools/fetch_backend.py): `direct` here,
+# `firecrawl` in the cluster. The direct backend does not run JavaScript; a
+# client-rendered page is where you point FETCH_BACKEND at a real Firecrawl.
 #
 # CONVENTIONS, from .kiro/steering/local-development.md and §4.3
 #   exact image tags, never :latest        health check on every service
