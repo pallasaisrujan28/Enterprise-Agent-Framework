@@ -107,6 +107,10 @@ function gateBadge(gate) {
   if (gate.decision === "block") { return uiBadge("gate · blocked", "broken"); }
   if (gate.decision === "pass") { return uiBadge("gate · passed", "built"); }
   if (gate.decision === "not-reached") { return uiBadge("gate · not reached", "missing"); }
+  /* Deliberately styled as a fault, not as a neutral state. The answer was
+   * delivered with NO obligation checked because the router was down — that is
+   * a compliance hole, and it must not look like a quiet pass. */
+  if (gate.decision === "unverified") { return uiBadge("gate · UNVERIFIED", "broken"); }
   return uiBadge("gate · nothing to enforce", "missing");
 }
 

@@ -246,31 +246,68 @@ def _trigger_with_judge(
     return triggered, f"{judge.name} selected {names}"
 
 
+@dataclass(frozen=True)
+class Routing:
+    """Which skills apply, why, and whether we actually know.
+
+    `degraded` is the field that matters. Without it, "the router said no skill
+    applies" and "the router broke so we have no idea" collapse into the same
+    empty tuple — and the turn then reports `nothing-to-enforce`, which claims a
+    decision that was never made.
+
+    This was a real hole, found by pointing BEDROCK_FAST_MODEL at a model this
+    account cannot call: the judge failed, lexical matching found nothing, no
+    skill triggered, and a legislation question was DELIVERED UNCHECKED while the
+    gate reported `nothing-to-enforce`.
+
+    waku hit the same class of bug from the other side. Its arena carried
+    Anthropic's gate model to xAI, the retrieval gate 400'd, and because that
+    gate fails open it retrieved on every turn for every non-Anthropic model and
+    reported it as a normal "retrieve" — "a silent permanent failure wearing the
+    costume of a healthy decision", in its own words.
+
+    The difference in direction is the whole point. waku's gate protects tokens,
+    so failing open costs money and is safe. Ours protects DELIVERY, so failing
+    open costs compliance. Same bug, much worse consequence, which is why the
+    state is now carried explicitly instead of being inferred from an empty tuple.
+    """
+
+    skills: tuple[Skill, ...]
+    reason: str
+    degraded: bool = False
+
+
 def _trigger(
     message: str, skillset: SkillSet, config: Config, judge: ChatModel | None = None
-) -> tuple[tuple[Skill, ...], str]:
+) -> Routing:
     """Which skills apply, and why — the reason is rendered, never discarded.
 
     A skill that fires invisibly is how a gate starts refusing traffic nobody can
     explain, so every path here returns a sentence that says what decided.
 
-    Falls back to lexical matching when the judge call fails. That direction is
-    chosen deliberately: a failed judge must not take the whole turn down, and
-    under-enforcing while SAYING SO is better than a turn that errors out. The
-    alternative — treating judge failure as "no skills apply" — would silently
-    disable the gate on exactly the kind of transient error nobody notices.
+    A failed judge falls back to lexical matching rather than taking the turn
+    down, but the result is marked `degraded`: lexical matching is known to be too
+    weak to rely on, so "it found nothing" is not evidence that nothing applies.
     """
     if not skillset.skills:
-        return (), "no skills are loaded, so there are no obligations to enforce"
+        return Routing((), "no skills are loaded, so there are no obligations to enforce")
 
     if judge is None:
-        return _trigger_lexically(message, skillset)
+        skills, reason = _trigger_lexically(message, skillset)
+        # No judge was built at all — for the echo provider, or because a caller
+        # injected a model. Lexical is all there is, so a miss is not a verdict.
+        return Routing(skills, reason, degraded=not skills)
 
     try:
-        return _trigger_with_judge(message, skillset, judge)
+        skills, reason = _trigger_with_judge(message, skillset, judge)
+        return Routing(skills, reason)
     except ModelError as exc:
         skills, reason = _trigger_lexically(message, skillset)
-        return skills, f"judge unavailable ({exc}); fell back to {reason}"
+        return Routing(
+            skills,
+            f"ROUTER UNAVAILABLE ({exc}); fell back to {reason}",
+            degraded=not skills,
+        )
 
 
 def _judge_for(config: Config, injected_model: ChatModel | None) -> ChatModel | None:
@@ -417,7 +454,8 @@ def respond(
 
     skillset = load_skills(resolved)
     router = judge or _judge_for(resolved, model)
-    triggered, trigger_reason = _trigger(message, skillset, resolved, router)
+    routing = _trigger(message, skillset, resolved, router)
+    triggered, trigger_reason = routing.skills, routing.reason
     system = build_system_prompt(skillset, triggered, llm.name, resolved.provider)
 
     yield Event(
@@ -463,7 +501,17 @@ def respond(
 
     result = gate.evaluate(_draft_from(draft_text), triggered)
 
-    if not triggered:
+    if routing.degraded:
+        # NOT "nothing-to-enforce". Nothing was enforced, but that is a
+        # consequence of the router being down, not a finding about the message.
+        # Reporting it as a clean pass is how a compliance gate quietly stops
+        # being one.
+        decision = "unverified"
+        reason = (
+            "could not determine which skills apply, so NO obligation was "
+            f"checked on this answer — {trigger_reason}"
+        )
+    elif not triggered:
         decision = "nothing-to-enforce"
         reason = trigger_reason
     elif result.passed:
