@@ -102,8 +102,8 @@ NODES: tuple[Node, ...] = (
         0,
         "partial",
         "The dashboard chat dock posts to POST /api/chat/stream, which answers "
-        "with SSE frames and calls agent.turn.respond — the same entry point any "
-        "other channel uses, with no private path of its own. Still partial: "
+        "with SSE frames and calls agent.brain.build_agent() — the same harness the "
+        "HTTP service uses, so neither door can skip the gate. Still partial: "
         "there is no authentication on the endpoint, and no channel other than "
         "the browser. A channel only moves text and never touches memory, so "
         "adding one cannot break recall.",
@@ -117,14 +117,14 @@ NODES: tuple[Node, ...] = (
         1,
         0,
         "partial",
-        "agent.turn.build_system_prompt rebuilds it every turn, stable parts "
-        "first so a provider can reuse the prefix: persona, then the skill index, "
-        "then the bodies of only the triggered skills, then the clock LAST. "
-        "History is now bounded to the last 8 turns, so context no longer grows "
-        "with the conversation. Still partial because no retrieved memory reaches "
-        "it — the four memory pillars are not wired to the prompt.",
+        "Assembled by the harness: deepagents SkillsMiddleware puts one line per "
+        "skill in the prompt and discloses the full procedure only on demand, and "
+        "SummarizationMiddleware compacts history to the backend rather than "
+        "letting context grow. Both replaced hand-rolled versions. Still partial "
+        "because no RETRIEVED memory reaches the prompt — the memory pillars are "
+        "not wired to MemoryMiddleware yet.",
         evidence="probed",
-        probe_import="agent.turn",
+        probe_import="agent.brain",
     ),
     Node(
         "agent",
@@ -134,17 +134,16 @@ NODES: tuple[Node, ...] = (
         2,
         0,
         "built",
-        "Behind the model seam now: agent/models/ holds a ChatModel protocol, a "
-        "Bedrock Converse adapter and an offline echo adapter, and nothing above "
-        "that package imports boto3 — so swapping provider is a module plus one "
-        "branch. Streaming returns usage by generator return value, so a streamed "
-        "turn and a batch turn produce the identical record. Config comes through "
-        "agent/config.py, which names the credential SOURCE and never returns a "
-        "secret. Five models verified by calling them; every Anthropic id fails "
-        "on this account for billing reasons, not IAM.",
+        "langchain_aws.ChatBedrockConverse, built in agent/model.py — the one "
+        "place that names a model. A hand-written provider layer lived here and "
+        "was deleted: it duplicated ChatBedrockConverse, and two model layers is "
+        "two things to keep in step. 15 ids in VERIFIED_MODELS, each confirmed by "
+        "CALLING it, because listed is not callable — Bedrock lists 46 text models "
+        "in eu-west-2 and 43 answer. The three that refuse are all Anthropic, two "
+        "of them on billing rather than IAM, so no permission change fixes them.",
         emphasis=True,
         evidence="probed",
-        probe_import="agent.models",
+        probe_import="langchain_aws",
     ),
     Node(
         "obligation",
@@ -175,15 +174,15 @@ NODES: tuple[Node, ...] = (
         4,
         0,
         "partial",
-        "agent.turn.respond is now the single door every channel comes through, "
-        "which is what gives tracing, consolidation and the retrieval gate "
-        "somewhere to hang. It streams, and it is honest about the ordering: text "
-        "reaches the screen BEFORE the gate has judged it, because the gate needs "
-        "a finished draft, so the stream is labelled a draft and a block "
-        "withdraws it. Partial because nothing persists — a Turn record exists "
-        "and is thrown away when the process ends.",
+        "create_deep_agent is the single loop every channel comes through. It "
+        "streams via LangGraph stream_mode='messages', and the ordering is stated "
+        "rather than hidden: text reaches the screen BEFORE the gate has judged "
+        "it, because the gate runs in after_agent and needs a finished answer — so "
+        "the stream is labelled a draft and a block withdraws it. Partial because "
+        "AGENTCORE_MEMORY_ID is unset, so the checkpointer is an in-process "
+        "MemorySaver and threads die with the process.",
         evidence="probed",
-        probe_import="agent.turn",
+        probe_import="agent.brain",
     ),
     Node(
         "retrieval",

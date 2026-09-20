@@ -17,15 +17,22 @@ from __future__ import annotations
 import json
 import mimetypes
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from agent import turn as turn_lib
-from agent.config import Config
 from agent.dashboard import topology
-from agent.models import verified_models
+from agent.middleware.obligations import load_skills
+from agent.model import (
+    FAST_MODEL_ID,
+    MODEL_ID,
+    REGION,
+    VERIFIED_MODEL_IDS,
+    VERIFIED_MODELS,
+    credential_source,
+)
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -48,21 +55,34 @@ _NO_AUTH_WARNING = (
     "account. Bind to loopback unless that has been deliberately reconsidered"
 )
 
-# Sessions live in this process and die with it. A dict plus a lock rather than
-# anything cleverer, because ThreadingHTTPServer serves each request on its own
-# thread and two browser tabs posting at once would otherwise race on creation.
-# Stated rather than hidden: the Postgres checkpointer the topology names is not
-# wired, so restarting the server loses every conversation.
-_SESSIONS: dict[str, turn_lib.Session] = {}
-_SESSIONS_LOCK = threading.Lock()
+# CONVERSATION HISTORY IS THE HARNESS'S JOB, NOT OURS.
+#
+# This used to keep its own Session objects with its own bounded history window.
+# That was a second implementation of something create_deep_agent already has: a
+# checkpointer, keyed by `thread_id`. So the dashboard now passes a thread_id and
+# the graph remembers the thread — which also means the HTTP service and the
+# dashboard share one notion of a conversation instead of two.
+#
+# The lock guards only the agent cache below. Building an agent constructs boto3
+# clients and a backend, and ThreadingHTTPServer serves each request on its own
+# thread, so two tabs posting at once would otherwise build two.
+_AGENTS: dict[str, Any] = {}
+_AGENTS_LOCK = threading.Lock()
 
 
-def _session(session_id: str) -> turn_lib.Session:
-    with _SESSIONS_LOCK:
-        existing = _SESSIONS.get(session_id)
+def _agent_for(model_id: str = ""):
+    """The agent for this model, built once and reused.
+
+    Keyed by model so switching model in the picker gets its own instance rather
+    than silently reusing the previous model's.
+    """
+    from agent import brain
+
+    with _AGENTS_LOCK:
+        existing = _AGENTS.get(model_id)
         if existing is None:
-            existing = turn_lib.Session(id=session_id)
-            _SESSIONS[session_id] = existing
+            existing = brain.build_agent(model_id or None)
+            _AGENTS[model_id] = existing
         return existing
 
 
@@ -164,28 +184,36 @@ class Handler(BaseHTTPRequestHandler):
         return payload
 
     def _session_action(self, body: dict[str, Any]) -> None:
-        """New chat, or read a thread back. Deliberately two actions.
+        """New chat, or read a thread back.
 
-        waku's equivalent grew to five (new / switch / history / all / live) with
-        a comment about the paths drifting apart. Ours has what the UI uses and
-        nothing speculative.
+        A "session" here is a LangGraph `thread_id`. Creating one is just choosing
+        a new id — the checkpointer materialises the thread on first use — and
+        reading history is asking the graph for that thread's state rather than
+        keeping a parallel copy.
         """
         action = str(body.get("action", ""))
 
         if action == "new":
-            fresh = f"s{len(_SESSIONS) + 1}"
-            self._send_json({"ok": True, "session": _session(fresh).id})
+            self._send_json({"ok": True, "session": f"web-{uuid.uuid4().hex[:12]}"})
             return
 
         if action == "history":
-            session = _session(str(body.get("session", "default")))
-            self._send_json(
-                {
-                    "ok": True,
-                    "session": session.id,
-                    "turns": [t.as_dict() for t in session.turns],
-                }
-            )
+            thread = str(body.get("session", "default"))
+            try:
+                state = _agent_for().get_state({"configurable": {"thread_id": thread}})
+                messages = state.values.get("messages", []) if state else []
+                self._send_json(
+                    {
+                        "ok": True,
+                        "session": thread,
+                        "messages": [
+                            {"role": getattr(m, "type", "?"), "text": getattr(m, "text", "")}
+                            for m in messages
+                        ],
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                self._send_json({"error": f"{type(exc).__name__}: {exc}"}, status=500)
             return
 
         self._send_json({"error": f"unknown action: {action!r}"}, status=400)
@@ -209,22 +237,21 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
-        config = Config.load()
-        # A model override is checked against the VERIFIED list, not passed
-        # through. An arbitrary id would reach Bedrock and fail there, and the
-        # resulting AccessDenied is far less clear than refusing it here.
+        # Checked against the verified list here rather than passed through: an
+        # arbitrary id reaches Bedrock and fails there, and that error is far less
+        # useful than refusing it with the list of what does work.
         requested = str(body.get("model", "")).strip()
-        if requested:
-            allowed = {str(entry["id"]) for entry in verified_models}
-            if requested not in allowed:
-                self._send_json(
-                    {"error": f"{requested} is not a verified model", "allowed": sorted(allowed)},
-                    status=400,
-                )
-                return
-            config = config.with_model(requested)
+        if requested and requested not in VERIFIED_MODEL_IDS:
+            self._send_json(
+                {
+                    "error": f"{requested} is not a verified model",
+                    "allowed": sorted(VERIFIED_MODEL_IDS),
+                },
+                status=400,
+            )
+            return
 
-        session = _session(str(body.get("session", "default")))
+        thread = str(body.get("session", "default"))
 
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -234,19 +261,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
 
-        stream = turn_lib.respond(message, session, config)
         try:
-            while True:
-                try:
-                    event = next(stream)
-                except StopIteration:
-                    break
-                frame = {"kind": event.kind, **event.payload}
-                if event.supersedes_draft:
-                    # Computed on the server so the browser does not have to
-                    # reimplement the rule about when a streamed draft is void.
-                    frame["supersedes_draft"] = True
-                self._send_frame(frame)
+            self._run_turn(message, thread, requested)
         except BrokenPipeError:
             # The reader closed the tab mid-turn. Not an error — but the turn is
             # abandoned here rather than finished, so nothing is recorded, which
@@ -263,6 +279,124 @@ class Handler(BaseHTTPRequestHandler):
                     "supersedes_draft": True,
                 }
             )
+
+    def _run_turn(self, message: str, thread: str, model_id: str) -> None:
+        """Drive the deepagents graph and translate it into SSE frames.
+
+        THE ORDERING IS THE HONEST PART, and it is why this cannot simply forward
+        raw graph events. Text streams out BEFORE the obligation gate has judged it
+        — the gate runs in `after_agent`, so it cannot see an answer until the
+        answer exists. The frames therefore label the stream a DRAFT, and the
+        `gate` frame that follows either confirms it or withdraws it. Holding
+        everything back until the gate ran would be the opposite lie: several
+        silent seconds, then a gated answer presented as if it had been checked all
+        along.
+
+        `supersedes_draft` is computed here so the browser does not have to
+        reimplement the rule for when a streamed draft is void.
+        """
+        agent = _agent_for(model_id)
+        run_config = {"configurable": {"thread_id": thread}}
+
+        self._send_frame(
+            {
+                "kind": "start",
+                "model": model_id or MODEL_ID,
+                "provider": "bedrock",
+                "router": FAST_MODEL_ID,
+                "thread": thread,
+            }
+        )
+
+        usage: dict[str, int] = {}
+        tools_called: list[str] = []
+
+        # stream_mode="messages" is LangGraph's own token stream. Reasoning blocks
+        # arrive as content blocks alongside text, and they are forwarded as a
+        # SEPARATE frame kind — the model's scratchpad must never be rendered as
+        # the answer.
+        #
+        # ONLY the "model" node is forwarded. The stream carries EVERY model call
+        # in the graph, and the obligation gate's routing call is one of them — so
+        # without this filter the router's "NONE" or a skill name leaked into the
+        # answer, appended right after the reply. langgraph_node names the source.
+        for chunk, meta in agent.stream(
+            {"messages": [{"role": "user", "content": message}]},
+            config=run_config,
+            stream_mode="messages",
+        ):
+            if meta.get("langgraph_node") != "model":
+                continue
+            for call in getattr(chunk, "tool_calls", None) or []:
+                name = call.get("name")
+                if name and name not in tools_called:
+                    tools_called.append(name)
+                    self._send_frame({"kind": "tool", "tool": name})
+
+            content = getattr(chunk, "content", None)
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "text" and block.get("text"):
+                        self._send_frame({"kind": "text", "delta": block["text"]})
+                    elif "reasoning_content" in block:
+                        reasoning = block["reasoning_content"]
+                        text = (
+                            reasoning.get("text", "") if isinstance(reasoning, dict) else reasoning
+                        )
+                        if text:
+                            self._send_frame({"kind": "reasoning", "delta": text})
+            elif isinstance(content, str) and content:
+                self._send_frame({"kind": "text", "delta": content})
+
+            meta = getattr(chunk, "usage_metadata", None)
+            if meta:
+                usage = {
+                    "input_tokens": int(meta.get("input_tokens", 0)),
+                    "output_tokens": int(meta.get("output_tokens", 0)),
+                }
+
+        # The verdict lives on graph state, written by ObligationGateMiddleware in
+        # after_agent, so it is read once the stream has ended rather than inferred
+        # from the messages.
+        state = agent.get_state(run_config)
+        values = state.values if state else {}
+        verdict = values.get("obligation_verdict") or {
+            "decision": "not-reached",
+            "reason": "the gate did not record a verdict for this turn",
+        }
+        final = values.get("messages", [])
+        reply = getattr(final[-1], "text", "") if final else ""
+
+        self._send_frame(
+            {
+                "kind": "gate",
+                "decision": verdict.get("decision"),
+                "reason": verdict.get("reason"),
+                "blocking": verdict.get("blocking", []),
+                "observed": verdict.get("observed", []),
+            }
+        )
+
+        refused = verdict.get("decision") == "block"
+        self._send_frame(
+            {
+                "kind": "done",
+                "reply": reply,
+                "draft": verdict.get("draft", ""),
+                "refused": refused,
+                "gate": verdict,
+                "skills": verdict.get("skills", []),
+                "tools": tools_called,
+                "model": model_id or MODEL_ID,
+                "usage": usage,
+                # A blocked turn has already streamed the withheld text to the
+                # screen. Leaving it there with a refusal underneath would show
+                # the user exactly the answer the gate refused to deliver.
+                "supersedes_draft": refused,
+            }
+        )
 
     def _send_frame(self, payload: dict[str, Any]) -> None:
         """One SSE frame. Flushed immediately, or it is not streaming."""
@@ -295,27 +429,27 @@ class Handler(BaseHTTPRequestHandler):
 def _describe_config() -> dict[str, Any]:
     """What the harness is configured to do, for the UI to state plainly.
 
-    Credentials are described, never returned — `Config.secret_ref()` names the
-    SOURCE. There is deliberately no endpoint that can return a secret value, so
-    a future bug cannot turn one into a leak.
+    Credentials are described, never returned — `credential_source()` names the
+    SOURCE. There is deliberately no endpoint that can return a secret value, so a
+    future bug cannot turn one into a leak.
     """
-    config = Config.load()
-    skillset = turn_lib.load_skills(config)
+    skillset = load_skills()
     return {
-        "provider": config.provider,
-        "model": config.model,
-        "fast_model": config.fast_model,
-        "region": config.region,
-        "max_tokens": config.max_tokens,
-        "credential_source": config.secret_ref(),
-        "warnings": list(config.warnings()),
-        "verified_models": [dict(entry) for entry in verified_models],
+        "provider": "bedrock",
+        "harness": "deepagents",
+        "model": MODEL_ID,
+        "fast_model": FAST_MODEL_ID,
+        "region": REGION,
+        "credential_source": credential_source(),
+        "verified_models": [dict(entry) for entry in VERIFIED_MODELS],
         "skills": [
             {"name": s.name, "description": s.description, "obligations": len(s.obligations)}
             for s in skillset.skills
         ],
-        "history_turns": turn_lib.HISTORY_TURNS,
-        "persistence": "in memory — conversations are lost when the server restarts",
+        "persistence": (
+            "the graph checkpointer. AGENTCORE_MEMORY_ID unset means an in-process "
+            "MemorySaver, so threads are lost when the server restarts"
+        ),
     }
 
 

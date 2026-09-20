@@ -134,15 +134,13 @@ def check_minio() -> bool:
 def check_bedrock() -> bool:
     """The one thing that is NOT local, by decision (ADR-011)."""
     try:
-        from agent.config import Config
-        from agent.models import Message, build
+        from agent.model import MODEL_ID, get_model
 
-        config = Config.load()
-        reply = build(config).complete((Message("user", "Reply with: ok"),))
+        usage = get_model().invoke("Reply with: ok").usage_metadata or {}
         return result(
             "bedrock (remote)",
             True,
-            f"{config.model} — {reply.usage.input_tokens} in / {reply.usage.output_tokens} out",
+            f"{MODEL_ID} — {usage.get('input_tokens', 0)} in / {usage.get('output_tokens', 0)} out",
         )
     except Exception as exc:
         return result(
@@ -154,35 +152,54 @@ def check_bedrock() -> bool:
 
 
 def check_turn() -> bool:
-    """End to end: the gate has to actually fire, or the stack proves nothing."""
-    try:
-        from agent import turn
-        from agent.config import Config
+    """End to end through the deepagents harness, with the gate actually firing.
 
-        config = Config.load()
-        plain = turn.run("What is 4 times 4? Just the number.", turn.Session(), config)
-        gated = turn.run(
-            "Under UK law, must an employer give a written statement of employment?",
-            turn.Session(),
-            config,
-        )
-        if plain.gate_decision == "unverified":
-            return result(
-                "turn + gate",
-                False,
-                "router degraded — nothing was enforced",
-                "BEDROCK_FAST_MODEL must be a callable model",
+    Two questions, because one proves less than it looks: an unregulated question
+    shows a turn completes, and a legislation question shows the obligation gate
+    still WITHHOLDS. A stack where the gate silently stopped enforcing would pass
+    the first check on its own.
+    """
+    try:
+        import warnings
+
+        warnings.filterwarnings("ignore")
+        from agent import brain
+
+        agent = brain.build_agent()
+
+        def ask(question: str, thread: str) -> tuple[str, dict]:
+            out = agent.invoke(
+                {"messages": [{"role": "user", "content": question}]},
+                config={"configurable": {"thread_id": thread}},
             )
-        ok = bool(plain.reply) and gated.skills_triggered != ()
-        return result(
-            "turn + gate",
-            ok,
-            f"plain={plain.reply[:14]!r} gate={plain.gate_decision} | "
-            f"gated skills={list(gated.skills_triggered)} refused={gated.refused}",
-            "" if ok else "a skill should trigger on a legislation question",
+            return out["messages"][-1].text.strip(), (out.get("obligation_verdict") or {})
+
+        plain, plain_verdict = ask("What is 4 times 4? Just the number.", "check-plain")
+        _, gated_verdict = ask(
+            "Under UK law, must an employer give a written statement of employment?",
+            "check-gated",
         )
+
+        if plain_verdict.get("decision") == "unverified":
+            return result(
+                "brain + gate",
+                False,
+                "router degraded — NO obligation was checked",
+                "BEDROCK_FAST_MODEL must name a callable model",
+            )
+
+        ok = bool(plain) and gated_verdict.get("decision") == "block"
+        return result(
+            "brain + gate",
+            ok,
+            f"plain={plain[:14]!r} gate={plain_verdict.get('decision')} | "
+            f"gated={gated_verdict.get('decision')} skills={gated_verdict.get('skills')}",
+            "" if ok else "a legislation question should trigger a skill and be withheld",
+        )
+    except ImportError as exc:
+        return missing_package("brain + gate", exc)
     except Exception as exc:
-        return result("turn + gate", False, f"{type(exc).__name__}: {str(exc)[:90]}")
+        return result("brain + gate", False, f"{type(exc).__name__}: {str(exc)[:90]}")
 
 
 def main() -> int:
@@ -192,7 +209,7 @@ def main() -> int:
     print("\n not a container, by decision (ADR-011):")
     remote_ok = check_bedrock()
     print("\n end to end:")
-    turn_ok = check_turn() if remote_ok else result("turn + gate", False, "skipped — no model")
+    turn_ok = check_turn() if remote_ok else result("brain + gate", False, "skipped — no model")
 
     print()
     if container_ok and remote_ok and turn_ok:

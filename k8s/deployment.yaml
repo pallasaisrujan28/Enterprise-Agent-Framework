@@ -32,7 +32,7 @@ spec:
             # model-access one, so no amount of granting would have fixed it.
             # The values below were verified by invoking Converse in eu-west-2
             # and reading the reply. The authoritative list is
-            # agent.models.verified_models, and the chat endpoint refuses
+            # agent.model.VERIFIED_MODELS, and the chat endpoint refuses
             # anything not on it rather than letting Bedrock fail confusingly.
             - name: BEDROCK_MODEL_ID
               value: openai.gpt-oss-120b-1:0

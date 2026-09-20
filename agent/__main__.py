@@ -9,22 +9,19 @@ Request flow per turn:
   guardrails.check(output)      → block harmful output
   → ChatResponse
 
-THERE ARE NOW TWO ENTRY POINTS AND TWO TURN IMPLEMENTATIONS. This merge brought
-in a dashboard with its own chat, so be clear which is which:
+TWO ENTRY POINTS, ONE BRAIN. Both call agent.brain.build_agent(), so they share a
+loop, a model layer, a checkpointer and the obligation gate:
 
   python -m agent          this file. FastAPI on 8080, the container's CMD.
-                           A turn is guardrails → policies → deepagents loop.
+  agent dashboard          agent/cli.py. The local dashboard on 7788.
 
-  agent dashboard          agent/cli.py. The local dashboard on 7788, whose
-                           chat calls agent.turn.respond — skills router →
-                           model seam → obligation gate.
+That mattered enough to consolidate for: there were briefly two harnesses, and
+the obligation gate was wired into only one of them. It now lives in the harness
+middleware stack, which is the only place that makes it impossible to skip.
 
-They do NOT share a loop, a model layer or a notion of memory, and that is a
-known duplication rather than a design: `agent/model.py` and `agent/models/`
-both exist, as do `agent/memory/working.py` and the prompt assembly in
-`agent/turn.py`. Consolidating them is deliberately a follow-up — the merge was
-taken with the duplication accepted, so that it is visible in one tree instead of
-diverging across two branches.
+The difference that remains is deliberate. This door adds Bedrock Guardrails and
+platform policy rules around the turn; the dashboard adds streaming and shows the
+gate's verdict. Both are channel concerns, not turn concerns.
 """
 
 from __future__ import annotations

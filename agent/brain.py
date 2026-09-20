@@ -32,15 +32,19 @@ from __future__ import annotations
 import os
 import warnings
 from pathlib import Path
+from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
 from deepagents.middleware import SummarizationMiddleware
+from langchain.agents.middleware import ToolErrorMiddleware
 from langchain.agents.middleware.todo import TodoListMiddleware  # type: ignore[import-not-found]
+from langchain.agents.middleware.types import AgentMiddleware
 
 from agent.backends import EAFBackend
 from agent.memory.checkpointer import get_checkpointer
-from agent.model import get_fast_model, get_model
+from agent.middleware.obligations import ObligationGateMiddleware
+from agent.model import get_fast_model, get_model, get_model_named
 from agent.tools.fetch_and_store import fetch_and_store
 from agent.tools.search_memory import search_memory
 from agent.tools.web_search import web_search
@@ -50,6 +54,22 @@ WORKSPACE_BUCKET = os.getenv("WORKSPACE_BUCKET", "")
 SKILLS_DIR = str(Path(__file__).parents[1] / "skills")
 
 _checkpointer = get_checkpointer()
+
+
+def _tool_error_message(exc: Exception, request: Any) -> str:
+    """Turn a tool exception into an observation the model can act on.
+
+    The handler ToolErrorMiddleware calls per failure. Returning a string makes
+    the failure a `ToolMessage(status="error")` the model reads and works around;
+    returning None would re-raise and end the turn, which is the behaviour being
+    fixed. Names the tool so the model knows which call not to simply retry.
+    """
+    tool_call = getattr(request, "tool_call", None) or {}
+    tool = tool_call.get("name") if isinstance(tool_call, dict) else None
+    return (
+        f"Error running tool {tool or '?'}: {type(exc).__name__}: {exc}. "
+        "This tool is unavailable right now; answer without it or use another."
+    )
 
 
 def _build_backend() -> CompositeBackend:
@@ -76,28 +96,59 @@ def _build_backend() -> CompositeBackend:
     )
 
 
-def build_agent():
-    """Build the EAF agent. Called once per request — stateless."""
+def build_agent(model_id: str | None = None):
+    """Build the EAF agent. Called once per request — stateless.
+
+    `model_id` lets a caller switch model for one conversation; the dashboard's
+    picker uses it. It is validated against the verified list rather than passed
+    through, because an unknown id fails at Bedrock with a far less useful error.
+    """
     backend = _build_backend()
 
+    # Annotated, because a bare list literal makes mypy JOIN the element types and
+    # then reject every member that is not the joined one. The annotation says what
+    # create_deep_agent actually accepts.
+    middleware: list[AgentMiddleware[Any, Any, Any]] = [
+        TodoListMiddleware(),
+        # A failing tool comes back as an error MESSAGE the model can read and
+        # work around, not an exception that ends the turn. This was not
+        # academic: web_search succeeded, the model also called fetch_and_store,
+        # Firecrawl is not in the local stack, and the ConnectError killed the
+        # whole turn — losing the good search result too. langchain ships this;
+        # the topology's old note about "we have not wired ToolErrorMiddleware" is
+        # now wired.
+        #
+        # on_error returns a string, which turns the exception into a
+        # ToolMessage(status="error"). Returning None would re-raise, which is the
+        # behaviour we are fixing. The tool name is included so the model knows
+        # which call to avoid retrying.
+        ToolErrorMiddleware(on_error=_tool_error_message),
+        # Replaces the repo's own ContentOverflowMiddleware, which was a plain
+        # class rather than an AgentMiddleware subclass — it had no `name`, so the
+        # harness rejected it and every build raised AttributeError. It was also
+        # solving a problem deepagents already solves: this middleware offloads
+        # conversation history to the backend and clips oversized tool results on
+        # the overflow path.
+        #
+        # Summarising runs on the FAST model deliberately. It is cheap mechanical
+        # work and it fires on long sessions — the worst place to pay flagship
+        # rates.
+        SummarizationMiddleware(model=get_fast_model(), backend=backend),
+        # The obligation gate. Inside the middleware stack rather than wrapped
+        # around the agent, so EVERY entry point gets it: the HTTP service and the
+        # dashboard both call build_agent(), and neither can skip it. Two doors
+        # with different protections was a real defect before this.
+        #
+        # Routing uses the fast model — choosing which skills apply is a
+        # classification over one line per skill, not an answer.
+        ObligationGateMiddleware(router=get_fast_model(), skills_dir=SKILLS_DIR),
+    ]
+
     return create_deep_agent(
-        model=get_model(),
+        model=get_model_named(model_id) if model_id else get_model(),
         tools=[web_search, fetch_and_store, search_memory],
         backend=backend,
-        middleware=[
-            TodoListMiddleware(),
-            # Replaces the repo's own ContentOverflowMiddleware, which was a plain
-            # class rather than an AgentMiddleware subclass — it had no `name`, so
-            # the harness rejected it and every build raised AttributeError. It was
-            # also solving a problem deepagents already solves: this middleware
-            # offloads conversation history to the backend and clips oversized tool
-            # results on the overflow path.
-            #
-            # Summarising runs on the FAST model deliberately. It is cheap
-            # mechanical work, and it fires on long sessions — the worst place to
-            # be paying flagship rates.
-            SummarizationMiddleware(model=get_fast_model(), backend=backend),
-        ],
+        middleware=middleware,
         checkpointer=_checkpointer,
         # `skills`, a list of SOURCES — not `skills_dir`, which this called and
         # which create_deep_agent has never accepted in the pinned version. The

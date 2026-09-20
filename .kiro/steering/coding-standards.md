@@ -39,6 +39,53 @@ If a requirement is ambiguous, contradictory, or under-specified, **ask**. Do no
 - **pydantic** for all data contracts crossing a component boundary.
 - Dependencies are **pinned to exact versions**. No floating ranges, no `^`, no `*`. A floating version silently changes tool schemas and prompt content between deploys.
 
+## Where Ideas Come From vs What Builds Them
+
+Two different repos play two different roles, and confusing them is how this codebase grew a second harness.
+
+> **waku-agent is a source of CONCEPTS. deepagents is the tool that BUILDS them.**
+>
+> Read waku to understand *what* to build and *why* — its retrieval gate, its triage split, its two-model tiering, its fail-open discipline. Never copy *how* it builds them. waku hand-rolls its harness because it is a teaching repo with no harness dependency; we have deepagents, and the whole point of this project is to learn it.
+
+So the workflow for any waku idea is fixed:
+
+1. **Understand the concept** from waku — the problem it solves, the failure it prevents.
+2. **Find the deepagents component** that provides it. Check the pinned version's source, not memory.
+3. **Build it with that component.**
+4. **Only if deepagents genuinely has nothing** for it, write custom code — and say so in the PR.
+
+### waku concept → deepagents component
+
+The mapping as it stands. Verify against the pinned version before relying on a row; this is a map, not a contract.
+
+| waku concept | Build it with |
+| --- | --- |
+| The agent loop (`run_loop`) | `create_deep_agent` |
+| Skills, progressive disclosure | `middleware.SkillsMiddleware` — via `create_deep_agent(skills=[...])` |
+| Consolidation / summarising history | `middleware.SummarizationMiddleware` |
+| Long-term / semantic memory | `middleware.MemoryMiddleware` + `backends.StoreBackend` |
+| Sub-agent delegation (`delegate_task`) | `middleware.SubAgentMiddleware`, `AsyncSubAgentMiddleware` |
+| Tool tiers, restricting what is callable | `create_deep_agent(tools=...)`, `FilesystemPermission` |
+| Shell / sandboxed execution | `backends.LocalShellBackend`, `backends.LangSmithSandbox` |
+| File and workspace tools | `middleware.FilesystemMiddleware` + `backends.CompositeBackend` |
+| Two-model tiering (`model` + `small_model`) | `agent/model.py` — `get_model()` / `get_fast_model()` |
+| Provider quirks and per-model conventions | `profiles.ProviderProfile`, `profiles.HarnessProfile` |
+| Human-in-the-loop approval | `HumanInTheLoopMiddleware` via `create_deep_agent(interrupt_on=...)` |
+| Judge-scored evaluation | `middleware.RubricMiddleware` |
+| Per-turn tracing / the observer | LangGraph `.stream(stream_mode=...)`, `backends.langsmith` |
+| Durable threads | `create_deep_agent(checkpointer=...)` |
+
+### waku concepts with no deepagents component — custom is correct here
+
+Write these ourselves, and the PR should reference this list rather than re-arguing it:
+
+- **The obligation gate.** `SkillsMiddleware` discloses skills to the model; nothing in deepagents enforces obligations *outside* it. Our whole premise is that the model cannot talk its way past them. Implemented as an `AgentMiddleware` so it plugs into the harness rather than wrapping it.
+- **The retrieval gate** (a cheap model deciding *whether* to retrieve). `MemoryMiddleware` retrieves; it does not decide against retrieving. A `before_model` or `wrap_model_call` hook is the place for it.
+- **The usage ledger.** Token counts come from `usage_metadata`; nothing upstream keeps an append-only spend record.
+- **Channels and the dashboard.** The HTTP surface and the UI are ours by definition.
+
+**Fail open or closed deliberately, and say which.** waku's gates fail *open* — a broken gate costs latency, never capability — because they protect tokens. Ours protect *delivery*, so an obligation check that cannot run must not silently pass. Copy the discipline of naming the direction; do not copy the direction itself.
+
 ## Use The Harness — deepagents First, Custom Last
 
 **deepagents is the harness. Before writing any function or component, check whether deepagents already provides it, and use that instead.** This is the first question on every change, not a later refactor. Custom code is written only when the capability genuinely does not exist upstream.
@@ -80,14 +127,20 @@ Answer in the PR description, in one sentence: **which upstream component did yo
 
 A legitimate answer looks like the **obligation gate** (`agent/gate.py`, `agent/skills_engine/obligations.py`): `SkillsMiddleware` loads skills and discloses them to the model, but nothing in deepagents enforces obligations *outside* the model, and the whole premise of this platform is that the model cannot talk its way past them. There is no upstream component for that, so it is ours. That is the bar.
 
-### Known violations of this rule, to be consolidated rather than extended
+### What this rule cost when it was not followed
 
-Recorded here so nobody takes them as precedent:
+A second harness was written before this rule existed and has since been deleted. It is recorded here because the shape of the mistake is worth recognising, not because the code still exists:
 
-- **`agent/models/`** duplicates `ChatBedrockConverse` and the provider profiles. It exists because it was written before this rule and answers a need — a testable offline provider — that `AGENT_PROVIDER=echo` could serve through the harness instead.
-- **`agent/turn.py`** duplicates `create_deep_agent` plus `SkillsMiddleware`, including a hand-rolled skill router and a hand-rolled history window that `SummarizationMiddleware` and the checkpointer already cover.
+| Deleted | Duplicated |
+| --- | --- |
+| `agent/models/` — a `ChatModel` protocol, a Bedrock adapter, an echo adapter | `ChatBedrockConverse` and `profiles.ProviderProfile` |
+| `agent/turn.py` — a turn loop, skill router, prompt assembly, history window | `create_deep_agent`, `SkillsMiddleware`, `SummarizationMiddleware`, the checkpointer |
+| `agent/config.py` — a config and secrets seam | `agent/model.py` plus the boto3 credential chain |
+| `agent/middleware/content.py` — tool-result offload | `SummarizationMiddleware` |
 
-New work goes through the harness. Neither of the above is a pattern to copy, and nothing new should be built on them.
+Every one of them worked. That is what made them expensive: two implementations of the same concern, both maintained, drifting apart, with two doors into the system carrying different protections. The obligation gate was wired into one and not the other.
+
+**The one part that survived is the part with no upstream equivalent** — the gate itself, now `agent/middleware/obligations.py`, an `AgentMiddleware` that plugs into the harness rather than replacing it.
 
 ## LangGraph Discipline
 
