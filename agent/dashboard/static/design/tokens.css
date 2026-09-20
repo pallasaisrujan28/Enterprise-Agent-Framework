@@ -52,6 +52,10 @@
 
   /* layout */
   --sidebar-width: 216px;
+  /* The chat dock. Wide enough for a paragraph of reply without wrapping every
+     few words; narrow enough that the architecture chart beside it still fits a
+     laptop screen. */
+  --dock-width: 400px;
 }
 
 /* Dark is the default, because this is an operations view that sits open. */

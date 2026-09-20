@@ -96,14 +96,17 @@ NODES: tuple[Node, ...] = (
     Node(
         "channel",
         "Channel",
-        "cli · web",
+        "web chat · cli",
         "harness",
         0,
         0,
         "partial",
-        "This dashboard and `agent dashboard` exist. No chat endpoint yet "
-        "(KAN-9) and no API for real traffic. A channel must only move text — it "
-        "never touches memory, so adding one cannot break recall.",
+        "The dashboard chat dock posts to POST /api/chat/stream, which answers "
+        "with SSE frames and calls agent.turn.respond — the same entry point any "
+        "other channel uses, with no private path of its own. Still partial: "
+        "there is no authentication on the endpoint, and no channel other than "
+        "the browser. A channel only moves text and never touches memory, so "
+        "adding one cannot break recall.",
         evidence="probed",
     ),
     Node(
@@ -114,52 +117,73 @@ NODES: tuple[Node, ...] = (
         1,
         0,
         "partial",
-        "Rebuilt from scratch every turn: persona, the time, memory context and "
-        "chat history. The bounded history window is not implemented, so context "
-        "grows with the conversation instead of staying flat.",
+        "agent.turn.build_system_prompt rebuilds it every turn, stable parts "
+        "first so a provider can reuse the prefix: persona, then the skill index, "
+        "then the bodies of only the triggered skills, then the clock LAST. "
+        "History is now bounded to the last 8 turns, so context no longer grows "
+        "with the conversation. Still partial because no retrieved memory reaches "
+        "it — the four memory pillars are not wired to the prompt.",
+        evidence="probed",
+        probe_import="agent.turn",
     ),
     Node(
         "agent",
         "LLM agent",
-        "reason",
+        "gpt-oss-120b",
         "harness",
         2,
         0,
-        "partial",
-        "gpt-oss-120b on Bedrock, verified invocable. Not yet behind the model "
-        "proxy seam (KAN-11), and credentials are read straight from the "
-        "environment rather than through a resolver (KAN-10).",
+        "built",
+        "Behind the model seam now: agent/models/ holds a ChatModel protocol, a "
+        "Bedrock Converse adapter and an offline echo adapter, and nothing above "
+        "that package imports boto3 — so swapping provider is a module plus one "
+        "branch. Streaming returns usage by generator return value, so a streamed "
+        "turn and a batch turn produce the identical record. Config comes through "
+        "agent/config.py, which names the credential SOURCE and never returns a "
+        "secret. Five models verified by calling them; every Anthropic id fails "
+        "on this account for billing reasons, not IAM.",
         emphasis=True,
-        probe_import="boto3",
+        evidence="probed",
+        probe_import="agent.models",
     ),
     Node(
         "obligation",
         "Obligation gate",
-        "fails closed",
+        "enforcing live traffic",
         "harness",
         3,
         0,
         "built",
         "agent/gate.py. Runs OUTSIDE the model, so the model cannot reason its "
-        "way to a pass or be talked past it. Fails closed. Observe-mode "
-        "violations record without blocking, so an obligation can be tuned "
-        "against real traffic before it enforces. It checks the Draft's fields — "
-        "including which tools were called — rather than substring-matching "
-        "prose.",
+        "way to a pass or be talked past it. Fails closed, and now refuses real "
+        "turns: a legislation question is withheld because the answer carries no "
+        "legislation.gov.uk citation. The withheld draft is kept and shown behind "
+        "a disclosure, because a refusal nobody can inspect is unauditable. "
+        "Observe-mode violations record without blocking. It checks the Draft's "
+        "FIELDS rather than substring-matching prose — which is also where the "
+        "weakest link now is: building those fields from prose is inference, and "
+        "getting `asked_user` wrong made one obligation unsatisfiable until it was "
+        "fixed.",
         evidence="probed",
         probe_import="agent.gate",
     ),
     Node(
         "reply",
         "Reply",
-        "back to you",
+        "streamed · then judged",
         "harness",
         4,
         0,
         "partial",
-        "Returned to whatever called it. No streaming, and no single respond() "
-        "function owns a turn — so there is nowhere for tracing, consolidation "
-        "or the retrieval gate to hang.",
+        "agent.turn.respond is now the single door every channel comes through, "
+        "which is what gives tracing, consolidation and the retrieval gate "
+        "somewhere to hang. It streams, and it is honest about the ordering: text "
+        "reaches the screen BEFORE the gate has judged it, because the gate needs "
+        "a finished draft, so the stream is labelled a draft and a block "
+        "withdraws it. Partial because nothing persists — a Turn record exists "
+        "and is thrown away when the process ends.",
+        evidence="probed",
+        probe_import="agent.turn",
     ),
     Node(
         "retrieval",
@@ -285,15 +309,19 @@ NODES: tuple[Node, ...] = (
     Node(
         "procedural",
         "Procedural",
-        "skills",
+        "skills · fires for real",
         "memory",
         0,
         4,
-        "partial",
+        "built",
         "skills_engine loads and validates skill files, refusing any whose "
-        "obligations cannot be enforced. Progressive disclosure is designed — "
-        "the index line is always resident, the body only on trigger. Never "
-        "observed firing in a real run.",
+        "obligations cannot be enforced. Progressive disclosure now actually "
+        "happens: the index line is always resident, the body only on trigger. "
+        "Observed firing end to end — a cheap-model judge reads the index and "
+        "names the skills that apply, which routes on the CATEGORY of a question. "
+        "Lexical matching was tried first and measured too weak: 'Equality Act "
+        "2010' shares no word with 'legislation advice', so the gate sat dead on "
+        "exactly the traffic it exists to police.",
         evidence="probed",
         probe_import="agent.skills_engine",
     ),

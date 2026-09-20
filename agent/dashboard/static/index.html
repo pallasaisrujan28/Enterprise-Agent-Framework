@@ -12,13 +12,44 @@
     <div id="brand">Enterprise Agent Framework</div>
     <div id="nav">
       <a href="#overview" data-enabled="true">Overview</a>
-      <a href="#chat" data-enabled="false">Chat <span class="badge">KAN-9</span></a>
     </div>
+    <!--
+      The chat lives in the dock on the right, not behind a nav entry, so a
+      message can be sent while WATCHING the architecture it runs through. That
+      is the whole reason the two are on screen together: the boxes in the chart
+      are the stages the turn reports as it goes.
+    -->
+    <div id="dockhint" class="label">chat is docked on the right &rarr;</div>
   </nav>
 
   <main id="view">
     <p class="subtitle">loading…</p>
   </main>
+
+  <aside id="dock">
+    <header class="dockhead">
+      <span class="dt">Chat</span>
+      <button class="chip" id="modelchip" onclick="toggleModelMenu(event)"
+              title="Switch the model for this conversation">…</button>
+      <button class="iconbtn" id="dock-close" title="Collapse the chat">&rsaquo;</button>
+    </header>
+
+    <div class="sesshead">
+      <button class="btn" onclick="newChat()">+ New chat</button>
+      <button class="btn" id="statstoggle" onclick="toggleStats()"
+              title="Show or hide the per-turn gate decision, tokens and timing">stats</button>
+    </div>
+
+    <div class="chatlog" id="chatlog"></div>
+
+    <div class="chatbar">
+      <input id="chatmsg" placeholder="Ask something…" autocomplete="off"
+             aria-label="Message the agent">
+      <button class="btn btn-primary" id="chatsend">Send</button>
+    </div>
+  </aside>
+
+  <button id="dock-reopen" class="btn btn-primary" title="Open the chat">&lsaquo; Chat</button>
 
   <!--
     Classic scripts sharing one global scope, loaded in dependency order.
@@ -29,6 +60,7 @@
   <script src="/js/util.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/diagram.js"></script>
+  <script src="/js/chat.js"></script>
   <script src="/js/views.js"></script>
   <script src="/js/main.js"></script>
 </body>

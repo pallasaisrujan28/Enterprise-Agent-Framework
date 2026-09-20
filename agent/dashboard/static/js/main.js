@@ -38,4 +38,11 @@ function render() {
 }
 
 window.addEventListener("hashchange", render);
-window.addEventListener("DOMContentLoaded", refresh);
+window.addEventListener("DOMContentLoaded", function () {
+  /* The dock is static markup outside #view, so it is wired ONCE and survives
+   * every render. It is also wired independently of refresh(): a failed
+   * /api/topology should not take the chat down with it, since the chat is the
+   * part you would use to work out what is wrong. */
+  wireDock();
+  refresh();
+});

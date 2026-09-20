@@ -95,15 +95,18 @@ function overviewView(data) {
     band + honesty + chart + detailPanel(data) + table + footerNote();
 }
 
+/* `#chat` used to be a page saying chat did not exist. It exists now, and it is
+ * in the dock rather than a page, so this route just points at it — an old
+ * bookmark should not land on a blank screen. */
 function chatView() {
   return "<h1>Chat</h1>" +
-    '<p class="subtitle">Not implemented.</p>' +
+    '<p class="subtitle">The chat is docked on the right, on every page.</p>' +
     uiNotice(
-      "warn",
-      "There is no chat endpoint yet — <strong>KAN-9</strong>. It needs a model behind " +
-      "the proxy seam (KAN-11) and credentials through the resolver (KAN-10) first, " +
-      "because a chat box streaming a hardcoded reply would be a stub presented as " +
-      "working. When it lands it will call the same entry point the CLI uses."
+      "note",
+      "It sits beside the architecture on purpose: each turn reports which skills " +
+      "triggered and what the obligation gate decided, and those are boxes on the " +
+      "chart. If the dock is collapsed, the <strong>Chat</strong> button at the " +
+      "bottom right reopens it."
     ) + footerNote();
 }
 

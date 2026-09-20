@@ -5,6 +5,9 @@
  * the point — a new primitive is a design decision, not a convenience.
  */
 
+/* options: {title, action, cls}. `cls` is appended to the card's class list, for
+ * a variant that needs different styling rather than different structure — the
+ * chat dock's assistant and refused cards are the only users so far. */
 function uiCard(body, options) {
   const opts = options || {};
   const header = opts.title
@@ -12,7 +15,8 @@ function uiCard(body, options) {
       (opts.action ? '<span>' + opts.action + '</span>' : '') +
       '</header>'
     : '';
-  return '<section class="card">' + header + body + '</section>';
+  const cls = opts.cls ? ' ' + esc(opts.cls) : '';
+  return '<section class="card' + cls + '">' + header + body + '</section>';
 }
 
 /* variant is one of the topology's four statuses, or omitted for neutral. */

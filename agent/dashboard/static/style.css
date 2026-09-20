@@ -235,3 +235,254 @@ footer {
   color: var(--text-muted);
   font-size: var(--text-xs);
 }
+
+/* ── the chat dock ───────────────────────────────────────────────────────────
+   A third column, not an overlay. An overlay would cover the architecture, and
+   having both on screen at once is the entire reason the chat is docked. */
+
+#dock {
+  width: var(--dock-width);
+  flex: 0 0 var(--dock-width);
+  border-left: 1px solid var(--rule);
+  background: var(--surface-sunken);
+  display: flex;
+  flex-direction: column;
+  /* The dock scrolls internally; the page does not scroll it. */
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.dockhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+}
+.dockhead .dt {
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+.sesshead {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* the scrolling conversation */
+.chatlog {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+  min-height: 0;
+}
+.chatlog .card { padding: var(--space-3); margin-bottom: var(--space-3); }
+.chatempty { color: var(--text-muted); padding: var(--space-4) var(--space-2); }
+.chatempty p { margin: 0 0 var(--space-2); }
+
+/* the user's own message — the only right-aligned thing in the product, which
+   is what makes a conversation readable at a glance */
+.bubble {
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hard);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3) var(--space-6);
+  color: var(--text-strong);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.card.refused { border-color: var(--bad); }
+
+.stages { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
+.gate-reason { margin: 0 0 var(--space-2); }
+
+.reply { overflow-wrap: anywhere; }
+.reply p { margin: 0 0 var(--space-2); }
+.reply p:last-child { margin-bottom: 0; }
+.reply h4 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-strong);
+}
+.reply ul, .reply ol { margin: 0 0 var(--space-2); padding-left: var(--space-4); }
+.reply li { margin-bottom: var(--space-1); }
+.reply pre {
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  overflow-x: auto;
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+}
+.reply table { font-size: var(--text-xs); }
+.reply code {
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+  background: var(--surface-sunken);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Streamed text is a draft until the gate has judged it, and says so. */
+.draftmark { color: var(--warn); margin-bottom: var(--space-1); }
+
+/* The blinking cursor while tokens arrive. Motion is the clearest signal that
+   something is still happening; the alternative is a reader wondering. */
+.caret {
+  display: inline-block;
+  width: 6px;
+  height: 0.9em;
+  margin-left: 2px;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  animation: caretblink 1s step-end infinite;
+}
+@keyframes caretblink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .caret { animation: none; }
+}
+
+/* The withheld draft, behind a disclosure. A refusal that cannot be inspected
+   is unauditable, so the text is kept — just not presented as the answer. */
+.withheld { margin-top: var(--space-2); }
+.withheld summary {
+  cursor: pointer;
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.withheld .reply {
+  margin-top: var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--bad);
+  color: var(--text-muted);
+}
+
+.meta { font-family: var(--face-mono); font-size: var(--text-xs); color: var(--text-muted); }
+
+/* the composer */
+.chatbar {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--rule);
+}
+.chatbar input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hard);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  color: var(--text-strong);
+  font: inherit;
+}
+.chatbar input:focus { outline: none; border-color: var(--accent); }
+
+/* ── buttons, chips and the model menu ───────────────────────────────────── */
+
+.btn {
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hard);
+  border-radius: var(--radius);
+  color: var(--text-body);
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--text-strong); }
+.btn-primary { border-color: var(--accent); color: var(--accent-fg); }
+.btn.on { border-color: var(--accent); color: var(--accent-fg); }
+
+.chip {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--shape-chip);
+  color: var(--text-muted);
+  padding: 2px var(--space-2);
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--accent); color: var(--text-body); }
+
+.iconbtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-base);
+  line-height: 1;
+  padding: 0 var(--space-1);
+}
+.iconbtn:hover { color: var(--text-strong); }
+
+#modelmenu {
+  position: absolute;
+  top: 44px;
+  right: var(--space-3);
+  left: var(--space-3);
+  z-index: 10;
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hard);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+}
+.menuhead { padding: var(--space-2); }
+.menuitem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-body);
+  padding: var(--space-2);
+  cursor: pointer;
+  font: inherit;
+}
+.menuitem:hover { background: var(--surface-sunken); }
+.menuitem code { font-family: var(--face-mono); font-size: var(--text-xs); }
+.menuitem .label { display: block; text-transform: none; letter-spacing: 0; }
+
+/* ── collapsing ──────────────────────────────────────────────────────────── */
+
+#dock-reopen { position: fixed; right: var(--space-4); bottom: var(--space-4); display: none; }
+body.dock-closed #dock { display: none; }
+body.dock-closed #dock-reopen { display: block; }
+
+/* The stats toggle hides per-turn diagnostics via a body class, so it applies to
+   turns already on screen rather than only to the next one. */
+body.no-stats .tele { display: none; }
+
+#dockhint { padding: 0 var(--space-2); }
+body.dock-closed #dockhint { display: none; }
+
+/* Below this the third column stops being useful and becomes a squeeze. The
+   dock overlays instead — the one case where covering the page is right, because
+   there is not room for both. */
+@media (max-width: 1100px) {
+  #dock {
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 20;
+    box-shadow: none;
+    border-left: 1px solid var(--rule-hard);
+  }
+}

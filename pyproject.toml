@@ -8,14 +8,21 @@ requires-python = ">=3.11"
 # supply-chain compromise or a breaking minor arrives without a review.
 dependencies = [
     "PyYAML>=6.0.2,<7",
+    # Promoted from the optional `bedrock` extra. The default provider IS Bedrock,
+    # so a default install that cannot run a turn is not a smaller install, it is
+    # a broken one — and the Dockerfile runs `uv sync --frozen --no-dev`, which
+    # never installed an extra, so the container could not have answered a
+    # message.
+    #
+    # The reason the extra existed still holds and is now met differently: the
+    # obligation layer is developed and tested with NO AWS account and no
+    # credentials, against agent/models/echo.py, and boto3 is imported inside
+    # BedrockModel.__init__ rather than at module scope — so nothing pays for it
+    # until a Bedrock model is actually constructed.
+    "boto3>=1.35.0,<2",
 ]
 
 [project.optional-dependencies]
-# Split out so the rule and obligation layer can be developed and tested with
-# no AWS account and no credentials at all.
-bedrock = [
-    "boto3>=1.35.0,<2",
-]
 dev = [
     # Crossing the major bound deliberately: PYSEC-2026-1845 affects pytest 8.x
     # and is only fixed in 9.0.3, so no lock move inside `<9` can resolve it.
