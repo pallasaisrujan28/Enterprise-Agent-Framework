@@ -1,10 +1,49 @@
 SHELL := /bin/bash
-.PHONY: setup test test-e2e coverage format check buildchecks install-hooks clean
+.PHONY: setup test test-e2e coverage format check buildchecks install-hooks clean \
+        local-up local-down local-check local-logs local-reset dashboard
 
 # ── Local setup ───────────────────────────────────────────────────────────────
 
 setup:
 	uv sync --all-extras
+
+# ── The local stack ───────────────────────────────────────────────────────────
+# The same backing services the cloud deployment uses, on one machine. ADR-019
+# makes this the gate: nothing is deployed to EKS until it works here.
+#
+# Bedrock is NOT in the stack — model calls go to the real service in every
+# environment (ADR-011), so this needs AWS credentials and it does bill.
+#
+#   cp .env.local.example .env.local   then   set -a; . ./.env.local; set +a
+
+local-up:
+	docker compose up -d
+	@echo ""
+	@echo "Qdrant   http://localhost:6333/dashboard"
+	@echo "SearXNG  http://localhost:8088"
+	@echo "MinIO    http://localhost:9001   (eaflocal / eaflocal-dev-password)"
+	@echo ""
+	@echo "Now: make local-check"
+
+local-down:
+	docker compose down
+
+# Verifies each service ANSWERS the call the application makes — `docker compose
+# ps` only proves a container is running, which is not the same thing. SearXNG in
+# particular runs happily while refusing JSON.
+local-check:
+	uv run python scripts/local_check.py
+
+local-logs:
+	docker compose logs -f --tail=50
+
+# Destroys the named volumes too, so Qdrant collections and the MinIO bucket go.
+local-reset:
+	docker compose down -v
+	@echo "Volumes removed. 'make local-up' starts from empty."
+
+dashboard:
+	uv run python -m agent.cli dashboard
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 

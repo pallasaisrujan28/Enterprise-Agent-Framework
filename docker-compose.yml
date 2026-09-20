@@ -1,0 +1,143 @@
+# The local stack — the same backing services the cloud deployment uses, on one
+# machine, so a feature can be proven before anything is deployed.
+#
+# ADR-019 has mandated Docker Compose since the day it was written and no compose
+# file existed. This is that file. It is also the gate ADR-019 describes: EKS is
+# not built until the features work here.
+#
+# WHAT IS DELIBERATELY NOT A CONTAINER
+# Bedrock. Every model call goes to the real service in every environment
+# (ADR-011), because a small local model is a DIFFERENT thing rather than a
+# smaller one — you would be tuning prompts against behaviour that does not exist
+# upstream. So this stack needs AWS credentials and it bills from day one. That is
+# ADR-019's position stated plainly rather than discovered later.
+#
+# WHAT THIS STACK COVERS, AND WHAT IT DOES NOT
+# Only services some code actually reads. The design's §4.3 topology also lists
+# Postgres/pgvector, Redis, OPA, etcd and Jaeger; nothing in the tree reads them
+# today, and starting containers no code connects to is the same mistake as a CI
+# gate for a component that does not exist. They arrive with their consumers.
+#
+#   covered      web_search (SearXNG) · search_memory and session working memory
+#                (Qdrant) · workspace read/write (MinIO over the S3 API)
+#   NOT covered  fetch_and_store and crawl_site. They call Firecrawl's /v1/scrape,
+#                and self-hosting Firecrawl is its own multi-service compose
+#                project rather than one pinned image. Run theirs alongside and
+#                point FIRECRAWL_URL at it. Until then those two tools fail
+#                against a local stack, which is stated here rather than left to
+#                a confusing timeout.
+#
+# CONVENTIONS, from .kiro/steering/local-development.md and §4.3
+#   exact image tags, never :latest        health check on every service
+#   named volumes so a restart keeps data  memory limits, so constraint shows up
+#   one `docker compose up` and it works   ports on 127.0.0.1 only
+#
+# Usage:  make local-up     (or: docker compose up -d)
+#         make local-check  verifies each service actually answers
+
+name: eaf-local
+
+services:
+  # ── vector store ──────────────────────────────────────────────────────────
+  # Session working memory and the search_memory tool. Same client, same API
+  # locally and in cluster — the swap is QDRANT_URL and nothing else.
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"   # REST
+      - "127.0.0.1:6334:6334"   # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    mem_limit: 1g
+    healthcheck:
+      # Qdrant's image has no curl or wget, so the check uses bash's own /dev/tcp
+      # rather than a binary that is not there. A TCP accept is weaker than a
+      # readiness probe and is the strongest thing available in this image.
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ── web search ────────────────────────────────────────────────────────────
+  # Self-hosted metasearch: no API key, no per-query cost, and it aggregates
+  # Google/Bing/DDG/Wikipedia. Needs ops/searxng/settings.yml — the JSON format
+  # is OFF by default and the rate limiter is ON, and either one alone makes
+  # agent/tools/web_search.py fail in a way that reads like a network problem.
+  searxng:
+    image: searxng/searxng:2026.9.20-2e624bed4
+    restart: unless-stopped
+    ports:
+      # 8088 rather than the obvious 8080, which is commonly already taken on a
+      # developer machine — it was, by an unrelated container, and the failure is
+      # an opaque "Bind for 0.0.0.0:8080 failed" during `up`. Override with
+      # SEARXNG_PORT if 8088 clashes too, and match SEARXNG_URL to it.
+      - "127.0.0.1:${SEARXNG_PORT:-8088}:8080"
+    volumes:
+      - ./ops/searxng:/etc/searxng:ro
+    environment:
+      # Must match the published port or SearXNG builds wrong absolute URLs.
+      SEARXNG_BASE_URL: http://localhost:${SEARXNG_PORT:-8088}/
+      SEARXNG_SECRET: local-development-only-not-a-secret
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # ── object store ──────────────────────────────────────────────────────────
+  # Stands in for S3 for the agent workspace. ADR-019 requires the S3 API rather
+  # than a MinIO client precisely so this is a config swap: boto3 reads
+  # AWS_ENDPOINT_URL_S3 natively, so agent/filesystem/workspace.py needs no code
+  # change to talk to it.
+  minio:
+    # The plain RELEASE tag, NOT the .hotfix.* variant. The hotfix images publish
+    # amd64 only, so on Apple Silicon they fail the pull with "no matching
+    # manifest for linux/arm64/v8" — which reads like a broken tag rather than a
+    # missing architecture.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # console
+    volumes:
+      - minio-data:/data
+    environment:
+      # Local-only credentials. Real AWS credentials still come from the
+      # environment for Bedrock; these two are scoped to this container.
+      MINIO_ROOT_USER: eaflocal
+      MINIO_ROOT_PASSWORD: eaflocal-dev-password
+    mem_limit: 1g
+    healthcheck:
+      # MinIO's own documented liveness endpoint. curl is present in this image;
+      # wget is not, which is why this is not the wget one-liner used for SearXNG.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Creates the workspace bucket, then exits. `depends_on: service_healthy`
+  # enforces the same startup ordering the cluster has (§2.8) — an ordering bug
+  # surfaces on a laptop instead of in a rollout.
+  minio-init:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 eaflocal eaflocal-dev-password
+        mc mb --ignore-existing local/eaf-workspace-local
+        echo "bucket eaf-workspace-local ready"
+    restart: "no"
+
+volumes:
+  qdrant-data:
+  minio-data:
