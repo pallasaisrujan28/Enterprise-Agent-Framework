@@ -9,8 +9,15 @@ requires-python = ">=3.11"
 # Never edit uv.lock by hand.
 dependencies = [
     "PyYAML>=6.0",
-    # deepagents harness — brings LangGraph, LangChain, and LangChain-AWS with it
-    "deepagents>=0.7",
+    # deepagents harness — brings LangGraph and LangChain with it.
+    #
+    # The [aws] EXTRA is required and was missing. langchain-aws is declared by
+    # deepagents as `extra == "aws"`, not as a base dependency, so a plain
+    # `deepagents>=0.7` install has no ChatBedrockConverse — and agent/model.py,
+    # agent/brain.py and agent/__main__.py all import it. The whole harness,
+    # including the FastAPI service the Dockerfile runs as its CMD, failed at
+    # import with "No module named 'langchain_aws'".
+    "deepagents[aws]>=0.7",
     # Bedrock inference (IRSA auth, no stored credentials)
     "boto3>=1.35",
     # Tool backends
@@ -20,6 +27,14 @@ dependencies = [
     # API server
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
+    # Static page extraction for the `direct` fetch backend — clean article
+    # markdown from raw HTML with no browser and no service. See
+    # agent/tools/fetch_backend.py for why this exists alongside Firecrawl.
+    "trafilatura>=1.12",
+    # DuckDuckGo search for the `duckduckgo` search backend — no service, no key.
+    # The maintained library rather than a raw HTML scrape, which DuckDuckGo now
+    # blocks. See agent/tools/search_backend.py.
+    "ddgs>=9.0",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +48,15 @@ dev = [
 ]
 
 [project.scripts]
-agent = "agent.__main__:app"
+# Points at the CLI, not at `agent.__main__:app`. A console script is called with
+# no arguments, and `app` is a FastAPI instance whose __call__ is the three-argument
+# ASGI signature — so `agent` raised TypeError rather than doing anything.
+#
+# Nothing is lost by the change: the HTTP service still starts with
+# `python -m agent` (which is what the Dockerfile's CMD uses), and `agent
+# dashboard` now works, which is the only thing a console script here can
+# usefully do.
+agent = "agent.cli:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]

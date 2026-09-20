@@ -1,0 +1,61 @@
+# SearXNG configuration for local development.
+#
+# TWO SETTINGS HERE ARE LOAD-BEARING and both default the wrong way for an agent:
+#
+#   formats must include json. SearXNG serves HTML only by default, so
+#   agent/tools/web_search.py — which asks for format=json — gets a 403 that
+#   reads like a permissions problem rather than a missing feature.
+#
+#   limiter must be false. With it on, the bot-detection middleware rate-limits
+#   a tool calling in a loop and returns 429s that look exactly like the upstream
+#   engines throttling us.
+#
+# Both were found the hard way. Neither is a secret and neither is safe to carry
+# into a shared deployment: this file binds to a loopback-only container and is
+# for a developer machine.
+
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "EAF local search"
+  # No usage stats endpoint — nothing consumes it and it is one less surface.
+  enable_metrics: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  # THE setting that makes the JSON API work at all.
+  formats:
+    - html
+    - json
+
+server:
+  # Overridden by SEARXNG_SECRET in docker-compose.yml. Present because SearXNG
+  # refuses to start without a value here.
+  secret_key: "local-development-only-not-a-secret"
+  limiter: false
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+ui:
+  static_use_hash: true
+
+# Keep the engine set small and free. Each engine is a network call per query, so
+# ten engines is ten times the latency for marginal extra coverage.
+engines:
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: wikipedia
+    disabled: false
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  pool_connections: 100
+  pool_maxsize: 20

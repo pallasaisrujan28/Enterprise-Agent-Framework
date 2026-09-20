@@ -27,3 +27,11 @@ test-reports/
 .env
 .env.*
 !.env.example
+# The local-stack template. `.env.*` above would have swallowed it, and a
+# committed example that is silently ignored is the same as no example at all —
+# the next person clones the repo and has nothing to copy.
+!.env.local.example
+
+# MCP server config holds API tokens in its env block. Steering and specs under
+# .kiro ARE committed; this one file must not be.
+.kiro/settings/mcp.json

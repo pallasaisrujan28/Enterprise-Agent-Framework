@@ -19,7 +19,11 @@ description: >
   files, and respects the obligation gate on every response.
 
 model:
-  id: anthropic.claude-3-5-sonnet-20241022-v2:0
+  # Verified by calling it in eu-west-2. The previous value,
+  # anthropic.claude-3-5-sonnet-20241022-v2:0, does not exist in this region —
+  # "The provided model identifier is invalid" — so this agent could never have
+  # run. agent/models/verified_models is the authoritative list of what answers.
+  id: openai.gpt-oss-120b-1:0
   region: eu-west-2
 
 tools:

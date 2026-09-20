@@ -11,7 +11,11 @@ generated: 2026-07-31T18:43:44+00:00
 
 Part of [[1-architecture-decisions-adrs|1. Architecture Decisions (ADRs)]].
 
-> **Re-scoped by [[ADR-019]].** Kubernetes is the **eventual** deployment target, **not yet active**. The platform currently runs on Docker Compose on a developer machine ([[ADR-019]]), and nothing below is built. Everything in this ADR remains the decided shape of the eventual cloud deployment — the rationale, the consequences, and the rejected alternatives all still hold. What changed is *when*, not *what*. The move is gated by the cloud readiness checkpoint ([[§8]]).
+> **Re-scoped by [[ADR-019]].** Kubernetes is the **eventual** deployment target, **not yet active**. The platform currently runs on Docker Compose on a developer machine ([[ADR-019]]), and nothing below is built. Everything in this ADR remains the decided shape of the eventual cloud deployment — the rationale, the consequences, and the rejected alternatives all still hold. What changed is *when*, not *what*.
+>
+> **The gate is the four-criterion checkpoint in [[ADR-019]]**, not [[§8]], which never stated any criteria. In short: a feature works end to end on the local stack, the obligation gate is enforcing on it, the local stack covers every backing service it touches, and the reason to deploy is a named property that cannot be observed locally. An EKS cluster was once built and destroyed without any of those holding, which is why the criteria are now written down.
+>
+> `k8s/deployment.yaml` in this repository is **not** the activation of this ADR. It is an unapplied manifest, and it has carried defects that only a real deployment would surface — model ids that no account could invoke among them.
 
 **Decision.** Every component of this platform ships as a **container**, and the **eventual** deployment target for those containers is **Kubernetes**, with **Amazon EKS** as the managed control plane. **One namespace per architectural layer** (gateway, orchestrator, executors, mcp, and one per tool-pool domain), each a network and policy boundary rather than a naming convention. **Terraform owns the cluster and the lifecycle of every cloud resource** ([[ADR-015]]); application manifests never provision infrastructure. **Helm** packages the workloads. Scaling architecture is [[§5.7]]. **None of this is active** — see [[ADR-019]] for the current runtime and the checkpoint that activates this one.
 

@@ -71,9 +71,13 @@ def search(session_id: str, query: str, top_k: int = 5) -> list[dict]:
 
     from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-    results = _qdrant.search(  # type: ignore[attr-defined]
+    # query_points, not the old search(). qdrant-client 1.19 removed the
+    # deprecated search() method entirely, so the previous call raised
+    # AttributeError at runtime — search_memory was broken against the installed
+    # client. query_points returns a response object whose .points holds the hits.
+    response = _qdrant.query_points(
         collection_name=COLLECTION,
-        query_vector=embed(query),
+        query=embed(query),
         query_filter=Filter(
             must=[FieldCondition(key="session_id", match=MatchValue(value=session_id))]
         ),
@@ -86,5 +90,5 @@ def search(session_id: str, query: str, top_k: int = 5) -> list[dict]:
             "url": (hit.payload or {}).get("url"),
             "text": (hit.payload or {}).get("text", ""),
         }
-        for hit in results
+        for hit in response.points
     ]

@@ -1,37 +1,31 @@
-"""Web search tool — calls SearXNG JSON API running in the tools namespace."""
+"""web_search — the public web, through a config-selected backend.
+
+HOW results are obtained is agent/tools/search_backend.py, chosen by
+SEARCH_BACKEND: `duckduckgo` (the ddgs library, no service) for local, `searxng`
+(the aggregating container) in the cluster. This tool only formats what comes
+back, so it is identical in both environments.
+"""
 
 from __future__ import annotations
 
-import os
-
-import httpx
 from langchain_core.tools import tool
 
-SEARXNG_URL = os.getenv("SEARXNG_URL", "http://searxng.tools.svc.cluster.local:8080/search")
+from agent.tools import search_backend
 
 
 @tool
 def web_search(query: str, num_results: int = 10) -> str:
     """
-    Search the web using SearXNG (aggregates Google, Bing, DuckDuckGo,
-    Wikipedia, arXiv — all free, no API keys). Returns a list of results
-    with title, url, and content snippet. Use this to find current
-    information or to identify URLs worth reading in full detail.
+    Search the public web and get back the top results (title, url, snippet).
+    Use this to find current information or to identify URLs worth reading in
+    full with fetch_and_store.
     """
-    resp = httpx.get(
-        SEARXNG_URL,
-        params={
-            "q": query,
-            "format": "json",
-            "engines": "google,bing,duckduckgo,wikipedia",
-            "results": num_results,
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    results = [
-        {"title": r.get("title"), "url": r.get("url"), "snippet": r.get("content")}
-        for r in data.get("results", [])[:num_results]
-    ]
-    return str(results)
+    # SearchError propagates: ToolErrorMiddleware turns it into an observation the
+    # model can read, rather than a raise that ends the turn.
+    results = search_backend.search(query, num_results)
+    if not results:
+        return f"No web results for {query!r}."
+    lines = [f"Web results for {query!r} (via {search_backend.backend_name()}):"]
+    for i, r in enumerate(results, 1):
+        lines.append(f"{i}. {r['title']}\n   {r['snippet']}\n   {r['url']}")
+    return "\n".join(lines)

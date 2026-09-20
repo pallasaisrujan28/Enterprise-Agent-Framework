@@ -26,10 +26,19 @@ spec:
               value: eu-west-2
 
             # Bedrock model selection
+            # Both of these were Anthropic ids, and BOTH FAILED when called.
+            # Every anthropic.* id on our accounts returns AccessDeniedException
+            # "INVALID_PAYMENT_INSTRUMENT" — a billing gate, not an IAM or
+            # model-access one, so no amount of granting would have fixed it.
+            # The values below were verified by invoking Converse in eu-west-2
+            # and reading the reply. The authoritative list is
+            # agent.model.VERIFIED_MODELS, and the chat endpoint refuses
+            # anything not on it rather than letting Bedrock fail confusingly.
             - name: BEDROCK_MODEL_ID
-              value: anthropic.claude-sonnet-4-6
+              value: openai.gpt-oss-120b-1:0
+            # The cheap model, used for skill routing rather than for answers.
             - name: BEDROCK_FAST_MODEL
-              value: anthropic.claude-haiku-4-5-20251001-v1:0
+              value: amazon.nova-lite-v1:0
 
             # S3 workspace bucket
             - name: WORKSPACE_BUCKET
