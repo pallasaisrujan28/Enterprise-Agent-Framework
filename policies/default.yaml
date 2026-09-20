@@ -18,7 +18,13 @@ rules:
   - id: no-aws-credentials
     description: Never output AWS access keys or secret keys
     action: deny
-    pattern: "(AKIA[0-9A-Z]{16}|(?i)aws.{0,20}secret.{0,20}['\"][A-Za-z0-9/+]{40}['\"])"
+    # The inline (?i) that used to sit before "aws" made this pattern
+    # UNCOMPILABLE on Python 3.11+ — "global flags not at the start of the
+    # expression" — so re.search raised re.error and POST /chat returned a 500 on
+    # every single request, including ones with nothing sensitive in them. The
+    # flag was redundant anyway: loader.py already passes re.IGNORECASE, which is
+    # what the comment at the top of this file says.
+    pattern: "(AKIA[0-9A-Z]{16}|aws.{0,20}secret.{0,20}['\"][A-Za-z0-9/+]{40}['\"])"
 
   - id: no-api-keys
     description: Never output generic API keys or tokens

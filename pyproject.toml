@@ -9,8 +9,15 @@ requires-python = ">=3.11"
 # Never edit uv.lock by hand.
 dependencies = [
     "PyYAML>=6.0",
-    # deepagents harness — brings LangGraph, LangChain, and LangChain-AWS with it
-    "deepagents>=0.7",
+    # deepagents harness — brings LangGraph and LangChain with it.
+    #
+    # The [aws] EXTRA is required and was missing. langchain-aws is declared by
+    # deepagents as `extra == "aws"`, not as a base dependency, so a plain
+    # `deepagents>=0.7` install has no ChatBedrockConverse — and agent/model.py,
+    # agent/brain.py and agent/__main__.py all import it. The whole harness,
+    # including the FastAPI service the Dockerfile runs as its CMD, failed at
+    # import with "No module named 'langchain_aws'".
+    "deepagents[aws]>=0.7",
     # Bedrock inference (IRSA auth, no stored credentials)
     "boto3>=1.35",
     # Tool backends

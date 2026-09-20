@@ -83,7 +83,16 @@ def chat(req: ChatRequest) -> ChatResponse:
         {"messages": [{"role": "user", "content": safe_input}]},
         config={"configurable": {"thread_id": thread_id}},
     )
-    draft = result["messages"][-1].content
+    # `.text`, not `.content`. A reasoning model returns content as a LIST of
+    # blocks — reasoning first, then the answer — so `.content` handed pydantic a
+    # list and ChatResponse failed validation on every turn. `.text` is
+    # langchain-core's own accessor: it concatenates the text blocks, drops the
+    # reasoning, and still returns the string unchanged for non-reasoning models.
+    #
+    # Dropping the reasoning is the point, not a side effect. It is the model's
+    # scratchpad, and returning it to a caller as the reply presents
+    # chain-of-thought as an answer.
+    draft = result["messages"][-1].text
 
     try:
         reply = guardrails.check(draft, source="OUTPUT")

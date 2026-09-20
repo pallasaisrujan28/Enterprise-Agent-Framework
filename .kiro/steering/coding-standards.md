@@ -39,9 +39,59 @@ If a requirement is ambiguous, contradictory, or under-specified, **ask**. Do no
 - **pydantic** for all data contracts crossing a component boundary.
 - Dependencies are **pinned to exact versions**. No floating ranges, no `^`, no `*`. A floating version silently changes tool schemas and prompt content between deploys.
 
+## Use The Harness — deepagents First, Custom Last
+
+**deepagents is the harness. Before writing any function or component, check whether deepagents already provides it, and use that instead.** This is the first question on every change, not a later refactor. Custom code is written only when the capability genuinely does not exist upstream.
+
+Search order, and stop at the first hit:
+
+1. **deepagents** — `create_deep_agent`, its middleware, its backends, its profiles
+2. **langchain / langgraph** — the substrate underneath it (see LangGraph Discipline below)
+3. **the standard library**
+4. **custom code** — only after 1–3 are ruled out, and the ADR or PR says which one was missing and why
+
+### What deepagents already provides
+
+Checked against the pinned version rather than remembered. Re-check with `python -c "import deepagents; print(dir(deepagents))"` when the pin moves — this list is a map, not a contract.
+
+| Need | Use this, do not rebuild it |
+| --- | --- |
+| The agent loop | `create_deep_agent` |
+| Skills in the prompt, progressive disclosure | `middleware.SkillsMiddleware` |
+| Context compaction / summarisation | `middleware.SummarizationMiddleware` |
+| Long-term memory | `middleware.MemoryMiddleware` |
+| Sub-agents and delegation | `middleware.SubAgentMiddleware`, `AsyncSubAgentMiddleware` |
+| File tools | `middleware.FilesystemMiddleware`, `FilesystemPermission` |
+| Scored evaluation | `middleware.RubricMiddleware` |
+| Prompt caching | `middleware._prompt_caching` (applied by the harness) |
+| Dangling tool calls | `middleware.patch_tool_calls` |
+| State / store / filesystem / S3 backing | `backends.StateBackend`, `StoreBackend`, `FilesystemBackend`, `CompositeBackend` |
+| Shell and sandboxed execution | `backends.LocalShellBackend`, `backends.LangSmithSandbox` |
+| Per-model prompt and tool conventions | `profiles.HarnessProfile`, `register_harness_profile` |
+| Per-provider quirks | `profiles.ProviderProfile`, `register_provider_profile` |
+
+Models reach the agent through **`langchain_aws.ChatBedrockConverse`**, constructed in `agent/model.py`. Do not write a provider client, a streaming wrapper, or a message-shape adapter.
+
+### The test for writing custom code
+
+Answer in the PR description, in one sentence: **which upstream component did you look for, and what specifically does it not do?**
+
+"It was easier to write my own" is not an answer. Neither is "the upstream one is more complicated than I need" — configuration is cheaper than a second implementation, and a second implementation is a thing to maintain, test and keep in step forever.
+
+A legitimate answer looks like the **obligation gate** (`agent/gate.py`, `agent/skills_engine/obligations.py`): `SkillsMiddleware` loads skills and discloses them to the model, but nothing in deepagents enforces obligations *outside* the model, and the whole premise of this platform is that the model cannot talk its way past them. There is no upstream component for that, so it is ours. That is the bar.
+
+### Known violations of this rule, to be consolidated rather than extended
+
+Recorded here so nobody takes them as precedent:
+
+- **`agent/models/`** duplicates `ChatBedrockConverse` and the provider profiles. It exists because it was written before this rule and answers a need — a testable offline provider — that `AGENT_PROVIDER=echo` could serve through the harness instead.
+- **`agent/turn.py`** duplicates `create_deep_agent` plus `SkillsMiddleware`, including a hand-rolled skill router and a hand-rolled history window that `SummarizationMiddleware` and the checkpointer already cover.
+
+New work goes through the harness. Neither of the above is a pattern to copy, and nothing new should be built on them.
+
 ## LangGraph Discipline
 
-LangGraph is the execution substrate. Use it as designed rather than building a parallel abstraction over it.
+LangGraph is the execution substrate **beneath deepagents**. Reach for it when deepagents has no component for the need — not before. Then use it as designed rather than building a parallel abstraction over it.
 
 - **Use real LangGraph primitives**: `StateGraph`, typed state schemas, nodes, conditional edges, `Send` for fan-out, `Command` for control flow, checkpointers for durability, and interrupts for human-in-the-loop. Do not hand-roll equivalents.
 - **Do not invent LangGraph APIs.** If unsure whether a primitive exists or how it behaves, check the installed version's source or docs. LangGraph's API has moved across versions; verify against the pinned version, not memory.
