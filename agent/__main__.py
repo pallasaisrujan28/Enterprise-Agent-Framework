@@ -1,18 +1,97 @@
-"""Makes `python -m agent` work.
+"""
+EAF Agent entry point — the deployed HTTP service.
 
-The Dockerfile has ended with `CMD ["/app/.venv/bin/python", "-m", "agent"]`
-since it was written, and this module did not exist — so the image built, pushed
-and then failed at startup with "No module named agent.__main__". Exactly the
-same defect the `agent` console script had before agent/cli.py was created, in
-the other direction.
+Request flow per turn:
+  guardrails.check(input)       → block harmful input
+  policies.evaluate(input)      → block policy violations
+  brain.build_agent(task)       → ReAct agent with top-k relevant tools
+  agent.invoke(messages)        → LangGraph loop
+  guardrails.check(output)      → block harmful output
+  → ChatResponse
 
-Delegates rather than duplicating: one argument parser, one dispatch table, two
-ways in.
+THERE ARE NOW TWO ENTRY POINTS AND TWO TURN IMPLEMENTATIONS. This merge brought
+in a dashboard with its own chat, so be clear which is which:
+
+  python -m agent          this file. FastAPI on 8080, the container's CMD.
+                           A turn is guardrails → policies → deepagents loop.
+
+  agent dashboard          agent/cli.py. The local dashboard on 7788, whose
+                           chat calls agent.turn.respond — skills router →
+                           model seam → obligation gate.
+
+They do NOT share a loop, a model layer or a notion of memory, and that is a
+known duplication rather than a design: `agent/model.py` and `agent/models/`
+both exist, as do `agent/memory/working.py` and the prompt assembly in
+`agent/turn.py`. Consolidating them is deliberately a follow-up — the merge was
+taken with the duplication accepted, so that it is visible in one tree instead of
+diverging across two branches.
 """
 
 from __future__ import annotations
 
-from agent.cli import main
+import uuid
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+from agent import brain
+from agent.guardrails import bedrock as guardrails
+from agent.guardrails.bedrock import GuardrailBlocked
+from agent.memory.checkpointer import get_checkpointer
+from agent.policies.loader import evaluate as policy_evaluate
+from agent.policies.loader import load_policies
+
+_POLICIES = load_policies()
+_CHECKPOINTER = get_checkpointer()
+
+app = FastAPI(title="EAF Agent")
+
+
+class ChatRequest(BaseModel):
+    message: str
+    thread_id: str | None = None
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    thread_id: str
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest) -> ChatResponse:
+    thread_id = req.thread_id or str(uuid.uuid4())
+
+    try:
+        safe_input = guardrails.check(req.message, source="INPUT")
+    except GuardrailBlocked as exc:
+        raise HTTPException(status_code=400, detail=f"Input blocked: {exc.reasons}") from exc
+
+    violations = [v for v in policy_evaluate(safe_input, _POLICIES) if v.action == "deny"]
+    if violations:
+        raise HTTPException(
+            status_code=400, detail=f"Policy violation: {violations[0].description}"
+        )
+
+    agent = brain.build_agent()
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": safe_input}]},
+        config={"configurable": {"thread_id": thread_id}},
+    )
+    draft = result["messages"][-1].content
+
+    try:
+        reply = guardrails.check(draft, source="OUTPUT")
+    except GuardrailBlocked as exc:
+        raise HTTPException(status_code=500, detail=f"Output blocked: {exc.reasons}") from exc
+
+    return ChatResponse(reply=reply, thread_id=thread_id)
+
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run("agent.__main__:app", host="0.0.0.0", port=8080, reload=False)

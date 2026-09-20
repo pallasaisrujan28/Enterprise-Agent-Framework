@@ -1,0 +1,45 @@
+# Core EAF agent definition.
+#
+# This file is the single source of truth for the core agent's configuration.
+# agent/brain.py reads this at startup to configure the LangGraph graph.
+#
+# Fields:
+#   model         — Bedrock model to use for reasoning
+#   tools         — tools registered in ToolRegistry (order does not matter;
+#                   selection is semantic, not positional)
+#   skills        — skill files from skills/ that may be triggered per turn
+#   context       — context engineering thresholds
+#   memory        — which memory backends to use
+#   guardrails    — which guardrail config to apply
+
+name: eaf-core
+version: "0.1.0"
+description: >
+  General-purpose EAF agent. Reasons, researches the web, reads and writes
+  files, and respects the obligation gate on every response.
+
+model:
+  id: anthropic.claude-3-5-sonnet-20241022-v2:0
+  region: eu-west-2
+
+tools:
+  - web_search         # SearXNG — aggregated web search
+  - fetch_and_store    # Crawl4AI → Qdrant — read a URL in full, store chunks
+  - search_memory      # Qdrant — query content already fetched this session
+  - read_workspace_file   # S3 workspace read
+  - write_workspace_file  # S3 workspace write
+
+skills:
+  - legislation_advice   # loaded from skills/legislation_advice.md
+
+context:
+  compact_after: 40      # compact message history after this many turns
+  keep_recent: 10        # keep this many recent messages verbatim after compaction
+  budget_tokens: 100000  # soft token ceiling per session
+
+memory:
+  working: qdrant        # session working memory (Qdrant)
+  persistent: agentcore  # cross-session memory (AgentCore, keyed by thread_id)
+
+guardrails:
+  config: content_safety  # loads from guardrails/content_safety.yaml
