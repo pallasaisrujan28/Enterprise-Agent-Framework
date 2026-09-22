@@ -70,7 +70,7 @@ all you need.
 Code-wise it is controlled on the **harness profile**, not per-call:
 
 ```python
-from deepagents import GeneralPurposeSubagentProfile   # present in 0.7.15
+from deepagents import GeneralPurposeSubagentProfile  # present in 0.7.15
 
 # rename / re-prompt the built-in one:
 GeneralPurposeSubagentProfile(...)
@@ -132,6 +132,7 @@ graph API), wrap it. Verified fields: `name`, `description`, `runnable` (a
 
 ```python
 from deepagents import CompiledSubAgent
+
 reviewer = CompiledSubAgent(name="reviewer", description="...", runnable=my_graph)
 ```
 
