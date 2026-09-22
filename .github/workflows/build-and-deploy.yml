@@ -1,9 +1,8 @@
 name: build-and-deploy
-# Builds the agent Docker image, scans it for vulnerabilities, pushes to ECR,
-# and deploys to EKS.
-#
-# Triggered on every push to main (deploys to dev automatically).
-# Feature branches: build and scan only, no push or deploy.
+# Builds the agent Docker image and scans it for vulnerabilities on every push.
+# Pushing to ECR and deploying to EKS is MANUAL (workflow_dispatch) only —
+# see the note on the `on:` trigger below. We are local-first; there is no
+# cluster yet, so automatic deploy only produced a failed job on every merge.
 #
 # Auth: assumes eaf-agent-ci-role in EAF-DEV via OIDC.
 # The role is created in workloads/dev/iam.tf (Enterprise-Agent-Framework-Infra repo).
@@ -11,6 +10,11 @@ name: build-and-deploy
 on:
   push:
     branches: ["**"]
+  # Deploy is MANUAL only — the push-and-deploy job gates on this event. There is
+  # no cluster to deploy to (local-first; EKS comes only after a feature is proven
+  # locally), so an automatic deploy just failed at the credentials step on every
+  # merge to main. Build-and-scan still runs on every push.
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -90,7 +94,12 @@ jobs:
   push-and-deploy:
     name: push and deploy
     needs: build-and-scan
-    if: needs.build-and-scan.outputs.push == 'true'
+    # Manual dispatch ONLY — never on a push. It assumes eaf-agent-ci-role and
+    # deploys to the eaf-dev EKS cluster, neither of which currently exists, so
+    # on a push this job failed at the first AWS step on every merge to main.
+    # Re-enable automatic deploy by restoring `needs.build-and-scan.outputs.push`
+    # here once the cluster and CI role are actually provisioned.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
 
