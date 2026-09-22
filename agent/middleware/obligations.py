@@ -39,6 +39,13 @@ they protect tokens. This one protects DELIVERY, so the direction is inverted: i
 routing cannot determine which policies apply, the turn is reported as unverified
 rather than quietly passed. An obligation check that cannot run must never look
 like one that ran and approved.
+
+THE MODEL IS THE ONLY ROUTER. An earlier version fell back to keyword matching
+when the router failed, which mis-routed unrelated questions to a policy on stray
+words like "about" AND hid the router failure behind a plausible-looking block.
+There is no keyword fallback now — but a router failure is still CAUGHT and
+surfaced as a degraded/unverified turn carrying the actual error, rather than
+crashing. Graceful inference on failure is a deliberate future decision.
 """
 
 from __future__ import annotations
@@ -73,9 +80,10 @@ _ASK_MAX_CHARS = 600
 class Verdict:
     """What the gate decided, kept on state so a channel can render it.
 
-    `degraded` is separate from "no policy applied" on purpose. Collapsing them
-    means a turn whose routing FAILED reports the same clean result as a turn that
-    was genuinely unregulated — which is how a compliance gate stops being one.
+    `unverified` (routing could not run) is separate from `nothing-to-enforce`
+    (routing ran and no policy applied) on purpose. Collapsing them means a turn
+    whose routing FAILED reports the same clean result as a genuinely unregulated
+    turn — which is how a compliance gate stops being one.
     """
 
     decision: str
@@ -149,9 +157,11 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
     """Withholds an answer that does not satisfy the obligations of a live policy.
 
     `router` is a LangChain chat model used to decide which policies apply — pass
-    the FAST model. Omit it and routing falls back to word matching, which is
-    measurably too weak to rely on and marks the turn degraded when it finds
-    nothing.
+    the FAST model. It is the ONLY router: there is no keyword/lexical fallback.
+    If the router is absent or fails, the failure is CAUGHT and the turn is
+    reported as `unverified` (degraded), with the error in the reason — never
+    silently replaced by a weaker matcher, and never crashing the turn. Graceful
+    inference on failure is left as a future decision.
     """
 
     name = "ObligationGateMiddleware"
@@ -167,24 +177,47 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
     def _route(
         self, message: str, policyset: PolicySet
     ) -> tuple[tuple[ObligationPolicy, ...], str, bool]:
-        """Which policies apply, why, and whether the answer is trustworthy."""
+        """Which policies apply, why, and whether the answer is trustworthy.
+
+        THE MODEL IS THE ONLY ROUTER. There is no keyword/lexical fallback — a
+        second, dumber matcher that fired on function words like "about" was
+        mis-routing unrelated questions to a policy and blocking them. That is
+        gone.
+
+        But a router OUTAGE (a raised exception, or no router wired at all) is
+        caught, not left to crash the turn. It is reported as a distinct degraded
+        state so it never looks like a clean result:
+
+        The third element is `degraded`: True means routing could not run, so
+        NOTHING was checked — reported to the caller as `unverified`, with the
+        actual error in the reason. It is deliberately separate from "no policy
+        applied": a check that could not run must not read like one that ran and
+        approved.
+        """
         if not policyset.policies:
             return (), "no obligation policies are loaded, so there is nothing to enforce", False
 
         if self._router is None:
-            policies, reason = self._route_lexically(message, policyset)
-            return policies, reason, not policies
+            return (
+                (),
+                "no router is configured, so which policies apply could not be "
+                "determined and NO obligation was checked",
+                True,
+            )
 
         try:
             policies, reason = self._route_with_model(message, policyset)
             return policies, reason, False
-        except Exception as exc:
-            policies, reason = self._route_lexically(message, policyset)
-            return (
-                policies,
-                f"ROUTER UNAVAILABLE ({type(exc).__name__}: {exc}); {reason}",
-                not policies,
+        except Exception as exc:  # noqa: BLE001 — any router failure is degraded, reported not raised
+            # Caught, logged, and surfaced as degraded — never silently replaced
+            # by a weaker matcher, and never crashing the whole turn.
+            print(f"obligation-gate ROUTER ERROR: {type(exc).__name__}: {exc}", flush=True)
+            reason = (
+                f"the obligation router failed ({type(exc).__name__}: {exc}), so "
+                "which policies apply could not be determined and NO obligation "
+                "was checked"
             )
+            return (), reason, True
 
     def _route_with_model(
         self, message: str, policyset: PolicySet
@@ -192,9 +225,9 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
         """Ask a cheap model which policies apply, from the one-line index.
 
         This is what `ObligationPolicy.index_line()` exists for, and it reads the
-        DOMAIN of a question rather than matching its words — which is why it
-        catches "Equality Act 2010" as a legislation question when word matching
-        cannot.
+        DOMAIN of a question rather than its surface words — which is why it
+        catches "Equality Act 2010" as a legislation question that plain keyword
+        matching would miss.
 
         The reply is not trusted: only names present in the policy set are
         accepted, so a hallucinated name is dropped rather than enabling nothing
@@ -215,32 +248,6 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
         if not policies:
             return (), f"router judged that no policy applies (said: {answer[:60]!r})"
         return policies, "router selected " + ", ".join(p.name for p in policies)
-
-    @staticmethod
-    def _route_lexically(
-        message: str, policyset: PolicySet
-    ) -> tuple[tuple[ObligationPolicy, ...], str]:
-        """Word overlap. THE FALLBACK, never the mechanism.
-
-        Measured too weak to rely on: "What does the Equality Act 2010 require of
-        employers?" shares no word with "legislation advice / Answering questions
-        about UK statute", so the policy never fired and the gate sat dead on
-        exactly the traffic it exists to police. Kept because it needs no model
-        call and so still works when the router is down.
-        """
-        words = {w.strip(".,?!:;\"'()").lower() for w in message.split() if len(w.strip()) >= 4}
-        hits: list[ObligationPolicy] = []
-        for policy in policyset.policies:
-            vocab = {
-                t.strip(".,").lower()
-                for t in f"{policy.name.replace('_', ' ')} {policy.description}".split()
-                if len(t) >= 4
-            }
-            if words & vocab:
-                hits.append(policy)
-        if not hits:
-            return (), "no policy matched the message lexically"
-        return tuple(hits), "lexical match on " + ", ".join(p.name for p in hits)
 
     # ── the hook ──────────────────────────────────────────────────────────────
 
@@ -267,6 +274,8 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
         result = gate.evaluate(draft_from(answer), policies)
 
         if degraded:
+            # Routing could not run. Nothing was checked, and the verdict says so
+            # plainly rather than passing the answer off as verified.
             verdict = Verdict(
                 "unverified",
                 "could not determine which policies apply, so NO obligation was "

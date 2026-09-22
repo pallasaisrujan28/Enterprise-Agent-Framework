@@ -18,6 +18,11 @@ dependencies = [
     # including the FastAPI service the Dockerfile runs as its CMD, failed at
     # import with "No module named 'langchain_aws'".
     "deepagents[aws]>=0.7",
+    # Dynamic sub-agents: a sandboxed QuickJS interpreter that exposes an `eval`
+    # tool and a `task()` global, letting the model orchestrate sub-agents from
+    # code (and call allowlisted tools via PTC). Wired in agent/delegation. Pulls
+    # the QuickJS runtime (quickjs-rs) with it. Beta API in deepagents.
+    "langchain-quickjs>=0.3",
     # Bedrock inference (IRSA auth, no stored credentials)
     "boto3>=1.35",
     # Tool backends

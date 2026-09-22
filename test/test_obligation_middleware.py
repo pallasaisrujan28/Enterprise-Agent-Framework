@@ -98,25 +98,47 @@ def test_urls_become_citations() -> None:
 
 def test_a_working_router_that_finds_nothing_is_not_degraded(policies: PolicySet) -> None:
     gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"))
-    _policies, _reason, degraded = gate._route("what is 2 plus 2", policies)
-    assert _policies == ()
+    selected, _reason, degraded = gate._route("what is 2 plus 2", policies)
+    assert selected == ()
     assert degraded is False
 
 
-def test_a_broken_router_that_finds_nothing_IS_degraded(policies: PolicySet) -> None:
-    """The whole point. Router failure must not read as 'nothing applies'.
+def test_a_failed_router_is_degraded_and_surfaces_the_error(policies: PolicySet) -> None:
+    """A router failure is CAUGHT — not swallowed silently, not replaced by a
+    keyword matcher, and not left to crash the turn.
 
-    A lexical fallback that also finds nothing (because the question shares no
-    word with any policy) must still mark the turn degraded, so it reports
-    `unverified` rather than a clean pass.
+    It yields no policies, marks the turn degraded (reported as `unverified`), and
+    carries the actual error in the reason so the failure is visible.
     """
     gate = ob.ObligationGateMiddleware(router=FakeRouter(boom=True))
-    _policies, reason, degraded = gate._route(
+    selected, reason, degraded = gate._route(
         "does an employer have to give a written statement", policies
     )
-    assert _policies == ()
+    assert selected == ()
     assert degraded is True
-    assert "ROUTER UNAVAILABLE" in reason
+    assert "router failed" in reason
+    assert "RuntimeError" in reason
+
+
+def test_no_router_configured_is_degraded_not_a_clean_pass(policies: PolicySet) -> None:
+    """No router means routing cannot run — degraded, not a silent 'nothing'."""
+    gate = ob.ObligationGateMiddleware(router=None)
+    selected, _reason, degraded = gate._route("a legislation question", policies)
+    assert selected == ()
+    assert degraded is True
+
+
+def test_an_unrelated_question_is_not_mis_routed(policies: PolicySet) -> None:
+    """Regression: the old keyword fallback matched a LinkedIn request to the
+    legislation policy on stray words like 'about'/'their' (both in the policy
+    description prose) and blocked it. With the model as the only router, an
+    unrelated question the router judges NONE simply has nothing to enforce."""
+    gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"))
+    selected, _reason, degraded = gate._route(
+        "can you search about Data Reply UK and fetch their LinkedIn posts", policies
+    )
+    assert selected == ()
+    assert degraded is False
 
 
 def test_the_router_only_selects_policies_that_exist(policies: PolicySet) -> None:
@@ -171,14 +193,12 @@ def test_no_policy_is_nothing_to_enforce_not_a_pass(policies: PolicySet, tmp_pat
 
 
 def test_a_broken_router_reports_unverified(policies: PolicySet, tmp_path: Path) -> None:
-    """Not 'nothing-to-enforce'. Nothing was checked, and the verdict says so.
+    """A router failure during a real turn is caught and reported as `unverified`
+    — nothing was checked, the verdict says so, and the answer is not rewritten.
 
-    The question must be one the LEXICAL fallback also misses — it shares no word
-    with "legislation / UK statute". If it matched lexically the fallback would
-    catch it and the turn would block, which is the safety net working rather
-    than the degraded path. This distinction is exactly the subtlety worth a
-    test: "a legislation question" DOES match lexically and would not be
-    degraded.
+    `unverified` does NOT withhold the message: reporting that nothing could be
+    checked is not the same as refusing, and whether to refuse on a routing
+    outage is a separate policy decision made elsewhere.
     """
     (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
     gate = ob.ObligationGateMiddleware(router=FakeRouter(boom=True), policies_dir=str(tmp_path))
@@ -188,8 +208,6 @@ def test_a_broken_router_reports_unverified(policies: PolicySet, tmp_path: Path)
     verdict = update["obligation_verdict"]
     assert verdict["decision"] == "unverified"
     assert "NO obligation was checked" in verdict["reason"]
-    # unverified does NOT rewrite the message — reporting is not the same as
-    # refusing, and whether to refuse is a policy decision made elsewhere.
     assert "messages" not in update
 
 

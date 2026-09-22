@@ -380,6 +380,22 @@ class Handler(BaseHTTPRequestHandler):
         )
 
         refused = verdict.get("decision") == "block"
+
+        # One line to stdout summarising what the turn actually did, because the
+        # rich per-turn detail otherwise only exists as SSE frames in the browser
+        # — the terminal saw nothing but the HTTP access line. Tool calls are the
+        # observable signal: `read_file` means a skill was opened, `write_todos`
+        # means it planned, `task` would mean a sub-agent (none is wired today).
+        skill_reads = "read_file" in tools_called
+        planned = "write_todos" in tools_called
+        print(
+            f"turn thread={thread} tools={tools_called or '[]'} "
+            f"skill_read={skill_reads} planned={planned} "
+            f"gate={verdict.get('decision')} policies={verdict.get('policies', [])} "
+            f"usage={usage or '{}'}",
+            flush=True,
+        )
+
         self._send_frame(
             {
                 "kind": "done",
