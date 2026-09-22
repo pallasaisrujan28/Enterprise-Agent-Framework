@@ -31,6 +31,13 @@ var MODEL_OVERRIDE = "";
 function mdToHtml(text) {
   var html = esc(text);
 
+  /* Restore literal <br> the model emitted. Everything is escaped first, so a
+   * model that writes "<br>" for an in-cell line break (they do this constantly
+   * inside markdown tables) had it turned into the visible text "&lt;br&gt;".
+   * <br> carries no attributes and no XSS, so putting exactly this one tag back
+   * is safe, and it is the only raw HTML the model is trusted to have meant. */
+  html = html.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+
   /* Fenced code before anything else, so its contents are not re-processed. */
   var blocks = [];
   html = html.replace(/```([\s\S]*?)```/g, function (_, code) {

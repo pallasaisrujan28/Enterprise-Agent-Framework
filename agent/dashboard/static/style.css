@@ -323,7 +323,28 @@ tr:last-child td { border-bottom: none; }
   font-family: var(--face-mono);
   font-size: var(--text-xs);
 }
-.reply table { font-size: var(--text-xs); }
+/* Tables scroll sideways in the narrow dock rather than crushing a column to
+   nothing. `display: block` + `overflow-x: auto` is what gives the scroll. */
+.reply table {
+  font-size: var(--text-xs);
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+/* The per-char "D A T E" break was `.reply { overflow-wrap: anywhere }` cascading
+   into cells: a squeezed column plus break-anywhere splits every character onto
+   its own line. Cells wrap at spaces only, like normal text. */
+.reply th,
+.reply td {
+  overflow-wrap: normal;
+  word-break: normal;
+  border: 1px solid var(--rule);
+  padding: 2px var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+.reply th { color: var(--text-strong); font-weight: var(--weight-medium); }
 .reply code {
   font-family: var(--face-mono);
   font-size: var(--text-xs);
