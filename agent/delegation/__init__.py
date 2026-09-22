@@ -21,6 +21,7 @@ never a way around it.
 """
 
 from agent.delegation.interpreter import build_interpreter_middleware
+from agent.delegation.prompt import DELEGATION_GUIDANCE
 from agent.delegation.subagents import build_subagents
 
-__all__ = ["build_interpreter_middleware", "build_subagents"]
+__all__ = ["DELEGATION_GUIDANCE", "build_interpreter_middleware", "build_subagents"]

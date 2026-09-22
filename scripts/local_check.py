@@ -65,26 +65,29 @@ def check_qdrant() -> bool:
 
 
 def check_search() -> bool:
-    """The web-search backend, making the same call web_search makes.
+    """The web-search MCP tool, making the same call the agent makes.
 
-    Whichever backend is configured — duckduckgo by default, needing no
-    container. A real query, because the failure worth catching is an empty
-    result set (a blocked scrape, a rate limit), which only a live call reveals.
+    Search now flows through the SearXNG MCP server (npx mcp-searxng → SEARXNG
+    instance), so this exercises the whole chain: the MCP subprocess starts, the
+    session opens, and a real query returns results. An empty set means SearXNG
+    is down or SEARXNG_URL is wrong — worth catching before a turn does.
     """
     try:
-        from agent.tools import search_backend
+        from agent.tools.searxng_mcp import SEARXNG_URL, build_search_tools
 
-        hits = search_backend.search("amazon bedrock", max_results=5)
-        name = search_backend.backend_name()
-        if not hits:
+        tools = build_search_tools()
+        search = next((t for t in tools if "search" in t.name.lower()), None)
+        if search is None:
+            return result("search (searxng mcp)", False, "MCP server exposed no search tool")
+        out = str(search.invoke({"query": "amazon bedrock"}))
+        if not out.strip():
             return result(
-                f"search ({name})",
+                "search (searxng mcp)",
                 False,
                 "zero results",
-                "duckduckgo may be rate-limiting; retry, or set "
-                "SEARCH_BACKEND=searxng with the container up",
+                f"is SearXNG up at {SEARXNG_URL}? check the container",
             )
-        return result(f"search ({name})", True, f"{len(hits)} results — {hits[0]['url'][:48]}")
+        return result("search (searxng mcp)", True, f"{len(out)} chars via {SEARXNG_URL}")
     except ImportError as exc:
         return missing_package("search", exc)
     except Exception as exc:

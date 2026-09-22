@@ -148,6 +148,23 @@ function stageStrip(m) {
       : "");
 }
 
+/* The step-by-step trail of what the agent DID — every tool call with its key
+ * argument (search query, fetched URL). Behind a disclosure so it does not crowd
+ * the answer, but there so a search result can be validated against its source. */
+function activityTrail(m) {
+  if (!m.activity || !m.activity.length) { return ""; }
+  var rows = m.activity.map(function (s) {
+    var d = s.detail || "";
+    var isUrl = /^https?:\/\//.test(d);
+    var val = isUrl
+      ? '<a href="' + esc(d) + '" target="_blank" rel="noopener">' + esc(d) + "</a>"
+      : esc(d);
+    return '<li><span class="act-tool">' + esc(s.tool) + "</span> " + val + "</li>";
+  }).join("");
+  return '<details class="activity"><summary>' + m.activity.length +
+    " step(s) — searches & fetches</summary><ul class=\"act-list\">" + rows + "</ul></details>";
+}
+
 /* A turn still running. Shows the stage strip so the gate's pending state is
  * visible, then either the streamed draft or a waiting line. */
 function streamingCard(m) {
@@ -186,6 +203,7 @@ function turnCard(m) {
 
   return uiCard(
     stageStrip(m) +
+    activityTrail(m) +
     '<div class="reply">' + mdToHtml(m.reply) + "</div>" +
     withheld +
     teleFooter(m),
@@ -236,6 +254,10 @@ function applyEvent(pending, ev) {
     pending.reasoning_chars = (pending.reasoning_chars || 0) + (ev.delta || "").length;
     return;
   }
+  if (ev.kind === "activity") {
+    pending.activity = ev.steps || [];
+    return;
+  }
   if (ev.kind === "gate") {
     pending.gate = { decision: ev.decision, reason: ev.reason,
                      blocking: ev.blocking || [], observed: ev.observed || [] };
@@ -258,6 +280,7 @@ function applyEvent(pending, ev) {
     pending.usage = ev.usage;
     pending.model = ev.model;
     pending.policies = ev.policies || [];
+    pending.activity = ev.activity || pending.activity || [];
   }
 }
 

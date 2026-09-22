@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import os
 import warnings
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -42,13 +43,17 @@ from langchain.agents.middleware.todo import TodoListMiddleware  # type: ignore[
 from langchain.agents.middleware.types import AgentMiddleware
 
 from agent.backends import EAFBackend
-from agent.delegation import build_interpreter_middleware, build_subagents
+from agent.delegation import (
+    DELEGATION_GUIDANCE,
+    build_interpreter_middleware,
+    build_subagents,
+)
 from agent.memory.checkpointer import get_checkpointer
 from agent.middleware.obligations import ObligationGateMiddleware
 from agent.model import get_fast_model, get_model, get_model_named
 from agent.tools.fetch_and_store import fetch_and_store
 from agent.tools.search_memory import search_memory
-from agent.tools.web_search import web_search
+from agent.tools.searxng_mcp import build_search_tools
 
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
 WORKSPACE_BUCKET = os.getenv("WORKSPACE_BUCKET", "")
@@ -98,6 +103,28 @@ def _build_backend() -> CompositeBackend:
     )
 
 
+def _system_prompt() -> str:
+    """The agent's authored system prompt: a freshness anchor + delegation rules.
+
+    The DATE matters. Without it the model anchors "now" to its training cutoff
+    and will confidently return stale facts for time-sensitive questions. Stating
+    today's date and telling it to verify anything time-sensitive via web_search
+    (with a recency filter) is what turns "correct but outdated" into "current".
+
+    Built here rather than as a constant because the date is only right at build
+    time; build_agent runs per request, so a long-lived process still refreshes it
+    whenever a new agent is built.
+    """
+    freshness = (
+        f"Today's date is {date.today().isoformat()}. Your training data has a "
+        "cutoff and may be out of date. For anything time-sensitive — recent "
+        "events, latest versions, current prices, who currently holds a role — do "
+        "NOT answer from memory. Use the web search tool and base the answer on "
+        "what you find, citing the sources."
+    )
+    return f"{freshness}\n\n{DELEGATION_GUIDANCE}"
+
+
 def build_agent(model_id: str | None = None):
     """Build the EAF agent. Called once per request — stateless.
 
@@ -106,6 +133,10 @@ def build_agent(model_id: str | None = None):
     through, because an unknown id fails at Bedrock with a far less useful error.
     """
     backend = _build_backend()
+    # Web search is now an MCP plug-in (SearXNG behind the Model Context
+    # Protocol), not an in-repo tool. Loaded once and shared with the delegation
+    # roster. See agent/tools/searxng_mcp.py.
+    search_tools = build_search_tools()
 
     # Annotated, because a bare list literal makes mypy JOIN the element types and
     # then reject every member that is not the joined one. The annotation says what
@@ -151,12 +182,16 @@ def build_agent(model_id: str | None = None):
         # interpreter code via PTC. Defined in agent/delegation so this builder
         # stays plumbing, not policy. PTC allowlist is a permission boundary —
         # only these retrieval tools, nothing that mutates durable state.
-        build_interpreter_middleware([web_search, fetch_and_store, search_memory]),
+        build_interpreter_middleware([*search_tools, fetch_and_store, search_memory]),
     ]
 
     return create_deep_agent(
         model=get_model_named(model_id) if model_id else get_model(),
-        tools=[web_search, fetch_and_store, search_memory],
+        tools=[*search_tools, fetch_and_store, search_memory],
+        # Freshness anchor (today's date + "verify time-sensitive facts") plus the
+        # delegation guidance that replaces the interpreter's "say 'workflow'"
+        # heuristic with a judgement on the shape of the task.
+        system_prompt=_system_prompt(),
         backend=backend,
         middleware=middleware,
         checkpointer=_checkpointer,
