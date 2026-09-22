@@ -1,18 +1,15 @@
 ---
 name: legislation_advice
 description: Answering questions about UK statute.
-required_tools:
-  - leg_resolve_identifier
-  - leg_get_contents
-  - leg_get_provision
-  - leg_traverse_amendments
-required_scopes:
-  - legislation:read
-obligations:
-  - must_cite: {contains: legislation.gov.uk, version_pinned: true}
-  - must_ask_when_missing: {fields: [as_at_date]}
-  - must_disclose: {when: unapplied_effects_exist, disclose: unapplied_effects}
 ---
+
+<!--
+  CAPABILITY ONLY. This skill teaches the procedure; it no longer carries
+  obligations. The enforceable rules for this domain — must_cite,
+  must_ask_when_missing, must_disclose — now live in obligations/legislation.yaml
+  and are enforced by the obligation gate, independent of this file. See
+  agent/obligation_policy.py for why they were split.
+-->
 
 ## When this applies
 

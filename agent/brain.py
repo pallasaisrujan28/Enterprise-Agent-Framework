@@ -52,6 +52,7 @@ from agent.tools.web_search import web_search
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
 WORKSPACE_BUCKET = os.getenv("WORKSPACE_BUCKET", "")
 SKILLS_DIR = str(Path(__file__).parents[1] / "skills")
+OBLIGATIONS_DIR = str(Path(__file__).parents[1] / "obligations")
 
 _checkpointer = get_checkpointer()
 
@@ -139,9 +140,11 @@ def build_agent(model_id: str | None = None):
         # dashboard both call build_agent(), and neither can skip it. Two doors
         # with different protections was a real defect before this.
         #
-        # Routing uses the fast model — choosing which skills apply is a
-        # classification over one line per skill, not an answer.
-        ObligationGateMiddleware(router=get_fast_model(), skills_dir=SKILLS_DIR),
+        # Routing uses the fast model — choosing which obligation policies apply
+        # is a classification over one line per policy, not an answer. Policies
+        # are enforcement, declared in obligations/*.yaml, distinct from the
+        # skills below which are pure capability disclosed by SkillsMiddleware.
+        ObligationGateMiddleware(router=get_fast_model(), policies_dir=OBLIGATIONS_DIR),
     ]
 
     return create_deep_agent(

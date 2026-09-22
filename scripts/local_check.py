@@ -210,8 +210,8 @@ def check_turn() -> bool:
             "brain + gate",
             ok,
             f"plain={plain[:14]!r} gate={plain_verdict.get('decision')} | "
-            f"gated={gated_verdict.get('decision')} skills={gated_verdict.get('skills')}",
-            "" if ok else "a legislation question should trigger a skill and be withheld",
+            f"gated={gated_verdict.get('decision')} policies={gated_verdict.get('policies')}",
+            "" if ok else "a legislation question should trigger a policy and be withheld",
         )
     except ImportError as exc:
         return missing_package("brain + gate", exc)

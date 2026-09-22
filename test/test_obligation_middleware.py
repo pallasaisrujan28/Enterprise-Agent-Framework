@@ -13,8 +13,8 @@ regress silently:
   - the block verdict withholds the answer but keeps the draft for audit.
   - a failing tool becomes a readable message, not a crash.
 
-All run with no network and no credentials: the router is a fake, and skills load
-from a tmp directory.
+All run with no network and no credentials: the router is a fake, and obligation
+policies load from a tmp directory.
 """
 
 from __future__ import annotations
@@ -25,17 +25,14 @@ from typing import Any
 import pytest
 
 from agent.middleware import obligations as ob
-from agent.skills_engine import SkillSet, load_skillset
+from agent.obligation_policy import PolicySet, load_policies
 
-# A skill whose must_cite obligation is easy to violate and easy to satisfy.
-CITE_SKILL = """---
-name: legislation_advice
+# A policy whose must_cite obligation is easy to violate and easy to satisfy.
+CITE_POLICY = """
+name: legislation
 description: Answering questions about UK statute.
 obligations:
   - must_cite: {contains: legislation.gov.uk, min_count: 1}
----
-## Procedure
-Cite the provision.
 """
 
 
@@ -53,9 +50,9 @@ class FakeRouter:
 
 
 @pytest.fixture
-def skills(tmp_path: Path) -> SkillSet:
-    (tmp_path / "legislation_advice.md").write_text(CITE_SKILL)
-    return load_skillset(tmp_path)
+def policies(tmp_path: Path) -> PolicySet:
+    (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
+    return load_policies(tmp_path)
 
 
 def ai(text: str) -> Any:
@@ -99,34 +96,34 @@ def test_urls_become_citations() -> None:
 # ── routing: the degraded distinction ────────────────────────────────────────
 
 
-def test_a_working_router_that_finds_nothing_is_not_degraded(skills: SkillSet) -> None:
+def test_a_working_router_that_finds_nothing_is_not_degraded(policies: PolicySet) -> None:
     gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"))
-    _skills, _reason, degraded = gate._route("what is 2 plus 2", skills)
-    assert _skills == ()
+    _policies, _reason, degraded = gate._route("what is 2 plus 2", policies)
+    assert _policies == ()
     assert degraded is False
 
 
-def test_a_broken_router_that_finds_nothing_IS_degraded(skills: SkillSet) -> None:
+def test_a_broken_router_that_finds_nothing_IS_degraded(policies: PolicySet) -> None:
     """The whole point. Router failure must not read as 'nothing applies'.
 
     A lexical fallback that also finds nothing (because the question shares no
-    word with any skill) must still mark the turn degraded, so it reports
+    word with any policy) must still mark the turn degraded, so it reports
     `unverified` rather than a clean pass.
     """
     gate = ob.ObligationGateMiddleware(router=FakeRouter(boom=True))
-    _skills, reason, degraded = gate._route(
-        "does an employer have to give a written statement", skills
+    _policies, reason, degraded = gate._route(
+        "does an employer have to give a written statement", policies
     )
-    assert _skills == ()
+    assert _policies == ()
     assert degraded is True
     assert "ROUTER UNAVAILABLE" in reason
 
 
-def test_the_router_only_selects_skills_that_exist(skills: SkillSet) -> None:
-    """A hallucinated skill name is dropped, not turned into a KeyError."""
-    gate = ob.ObligationGateMiddleware(router=FakeRouter("made_up_skill, legislation_advice"))
-    selected, _reason, _degraded = gate._route("a legislation question", skills)
-    assert [s.name for s in selected] == ["legislation_advice"]
+def test_the_router_only_selects_policies_that_exist(policies: PolicySet) -> None:
+    """A hallucinated policy name is dropped, not turned into a KeyError."""
+    gate = ob.ObligationGateMiddleware(router=FakeRouter("made_up_policy, legislation"))
+    selected, _reason, _degraded = gate._route("a legislation question", policies)
+    assert [p.name for p in selected] == ["legislation"]
 
 
 # ── after_agent: the verdicts ─────────────────────────────────────────────────
@@ -137,10 +134,11 @@ def _run(gate: ob.ObligationGateMiddleware, user: str, answer: str) -> dict:
     return gate.after_agent(state, runtime=None) or {}
 
 
-def test_block_withholds_the_answer_but_keeps_the_draft(skills: SkillSet, tmp_path: Path) -> None:
-    gate = ob.ObligationGateMiddleware(
-        router=FakeRouter("legislation_advice"), skills_dir=str(tmp_path)
-    )
+def test_block_withholds_the_answer_but_keeps_the_draft(
+    policies: PolicySet, tmp_path: Path
+) -> None:
+    (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
+    gate = ob.ObligationGateMiddleware(router=FakeRouter("legislation"), policies_dir=str(tmp_path))
     update = _run(gate, "a legislation question", "Employers must comply. No citation here.")
     verdict = update["obligation_verdict"]
     assert verdict["decision"] == "block"
@@ -152,10 +150,9 @@ def test_block_withholds_the_answer_but_keeps_the_draft(skills: SkillSet, tmp_pa
     assert "must_cite" in update["messages"][0].text
 
 
-def test_a_satisfied_obligation_passes(skills: SkillSet, tmp_path: Path) -> None:
-    gate = ob.ObligationGateMiddleware(
-        router=FakeRouter("legislation_advice"), skills_dir=str(tmp_path)
-    )
+def test_a_satisfied_obligation_passes(policies: PolicySet, tmp_path: Path) -> None:
+    (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
+    gate = ob.ObligationGateMiddleware(router=FakeRouter("legislation"), policies_dir=str(tmp_path))
     update = _run(
         gate,
         "a legislation question",
@@ -166,23 +163,25 @@ def test_a_satisfied_obligation_passes(skills: SkillSet, tmp_path: Path) -> None
     assert "messages" not in update
 
 
-def test_no_skill_is_nothing_to_enforce_not_a_pass(skills: SkillSet, tmp_path: Path) -> None:
-    gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"), skills_dir=str(tmp_path))
+def test_no_policy_is_nothing_to_enforce_not_a_pass(policies: PolicySet, tmp_path: Path) -> None:
+    (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
+    gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"), policies_dir=str(tmp_path))
     update = _run(gate, "what is 2 plus 2", "4")
     assert update["obligation_verdict"]["decision"] == "nothing-to-enforce"
 
 
-def test_a_broken_router_reports_unverified(skills: SkillSet, tmp_path: Path) -> None:
+def test_a_broken_router_reports_unverified(policies: PolicySet, tmp_path: Path) -> None:
     """Not 'nothing-to-enforce'. Nothing was checked, and the verdict says so.
 
     The question must be one the LEXICAL fallback also misses — it shares no word
-    with "legislation advice / UK statute". If it matched lexically the fallback
-    would catch it and the turn would block, which is the safety net working
-    rather than the degraded path. This distinction is exactly the subtlety worth
-    a test: "a legislation question" DOES match lexically and would not be
+    with "legislation / UK statute". If it matched lexically the fallback would
+    catch it and the turn would block, which is the safety net working rather
+    than the degraded path. This distinction is exactly the subtlety worth a
+    test: "a legislation question" DOES match lexically and would not be
     degraded.
     """
-    gate = ob.ObligationGateMiddleware(router=FakeRouter(boom=True), skills_dir=str(tmp_path))
+    (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
+    gate = ob.ObligationGateMiddleware(router=FakeRouter(boom=True), policies_dir=str(tmp_path))
     update = _run(
         gate, "does an employer have to give a written statement", "Some answer, no citation."
     )
@@ -194,8 +193,9 @@ def test_a_broken_router_reports_unverified(skills: SkillSet, tmp_path: Path) ->
     assert "messages" not in update
 
 
-def test_an_empty_answer_is_left_alone(skills: SkillSet, tmp_path: Path) -> None:
-    gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"), skills_dir=str(tmp_path))
+def test_an_empty_answer_is_left_alone(policies: PolicySet, tmp_path: Path) -> None:
+    (tmp_path / "legislation.yaml").write_text(CITE_POLICY)
+    gate = ob.ObligationGateMiddleware(router=FakeRouter("NONE"), policies_dir=str(tmp_path))
     assert _run(gate, "hello", "   ") == {}
 
 

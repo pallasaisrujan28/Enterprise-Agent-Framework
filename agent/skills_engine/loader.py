@@ -30,8 +30,6 @@ import yaml
 from agent.skills_engine import obligations as ob_lib
 from agent.skills_engine.model import (
     MAX_DESCRIPTION_CHARS,
-    MODE_ENFORCE,
-    MODES,
     Obligation,
     Skill,
 )
@@ -119,29 +117,16 @@ def validate_scopes(skill: Skill, agent_scopes: set[str]) -> list[str]:
 
 
 def _parse_obligations(raw: object, source: Path) -> tuple[Obligation, ...]:
-    if raw is None:
-        return ()
-    if not isinstance(raw, list):
-        raise SkillError(f"{source}: 'obligations' must be a list")
+    """Thin wrapper over the shared parser, re-raising as SkillError with context.
 
-    parsed: list[Obligation] = []
-    for entry in raw:
-        if not isinstance(entry, dict) or len(entry) != 1:
-            raise SkillError(
-                f"{source}: each obligation must be a single-key mapping, got {entry!r}"
-            )
-        kind, params = next(iter(entry.items()))
-        params = dict(params or {})
-        mode = str(params.pop("mode", MODE_ENFORCE))
-        if mode not in MODES:
-            raise SkillError(f"{source}: obligation '{kind}' has unknown mode '{mode}'")
-        if kind not in ob_lib.known_kinds():
-            raise SkillError(
-                f"{source}: unknown obligation kind '{kind}'. "
-                f"Known kinds: {', '.join(ob_lib.known_kinds())}"
-            )
-        parsed.append(Obligation(kind=kind, params=params, mode=mode))
-    return tuple(parsed)
+    The parsing itself lives in obligations.py so a skill file and an obligation
+    policy parse the `obligations:` block identically. Only the error type
+    differs.
+    """
+    try:
+        return ob_lib.parse_obligations(raw, str(source))
+    except ValueError as exc:
+        raise SkillError(str(exc)) from exc
 
 
 def load_skill(path: Path) -> Skill:

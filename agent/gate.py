@@ -20,9 +20,30 @@ Two properties matter more than anything else here:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from agent.skills_engine import obligations as ob_lib
-from agent.skills_engine.model import Draft, Skill, Violation
+from agent.skills_engine.model import Draft, Obligation, Violation
+
+
+class Governed(Protocol):
+    """Anything the gate can enforce: it has a name and a list of obligations.
+
+    Both an ObligationPolicy and a Skill satisfy this structurally, so the gate
+    does not need to know which it was handed — which is the whole point of
+    splitting policy from capability. In practice the middleware passes policies.
+
+    Declared as read-only properties rather than bare attributes: a plain
+    `obligations: tuple[...]` on a Protocol is invariant and settable, which a
+    frozen dataclass field does not satisfy. Read-only properties are what a
+    frozen dataclass actually provides.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def obligations(self) -> tuple[Obligation, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -52,21 +73,26 @@ class GateResult:
 
     def reason(self) -> str:
         """Why delivery was refused, for the retry prompt and the audit record."""
-        return "; ".join(f"{v.skill}/{v.obligation}: {v.detail}" for v in self.blocking)
+        return "; ".join(f"{v.source}/{v.obligation}: {v.detail}" for v in self.blocking)
 
 
-def evaluate(draft: Draft, triggered: tuple[Skill, ...]) -> GateResult:
-    """Check a draft against the obligations of every skill that fired this turn.
+def evaluate(draft: Draft, triggered: tuple[Governed, ...]) -> GateResult:
+    """Check a draft against the obligations of every policy that applies.
 
-    Only triggered skills are checked. A skill whose guidance never entered the
-    prompt has no business judging the answer — obligations are the enforcement
-    half of a specific instruction, not free-floating platform policy. Platform
-    policy (PII, jailbreak, tenant isolation) is enforced elsewhere and always.
+    Only applicable policies are checked — a policy whose domain the question is
+    not in has no business judging the answer. Obligations are the enforcement
+    half of a specific domain contract, not free-floating platform policy;
+    platform policy (PII, jailbreak, tenant isolation) is enforced elsewhere and
+    always.
+
+    Duck-typed over `Governed`: it works on an ObligationPolicy or a Skill or
+    anything else carrying `.name` and `.obligations`, so the source of the
+    obligations can change without touching the gate.
     """
     violations: list[Violation] = []
 
-    for skill in triggered:
-        for obligation in skill.obligations:
+    for governed in triggered:
+        for obligation in governed.obligations:
             try:
                 detail = ob_lib.check(draft, obligation)
             except Exception as exc:  # noqa: BLE001 — see the fail-closed note above
@@ -75,7 +101,7 @@ def evaluate(draft: Draft, triggered: tuple[Skill, ...]) -> GateResult:
                 continue
             violations.append(
                 Violation(
-                    skill=skill.name,
+                    source=governed.name,
                     obligation=obligation.kind,
                     detail=detail,
                     blocking=obligation.blocking,

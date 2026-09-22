@@ -16,18 +16,20 @@ from pathlib import Path
 import pytest
 
 from agent.gate import evaluate
-from agent.skills_engine import Draft, load_skill, load_skillset
+from agent.obligation_policy import load_policy
+from agent.skills_engine import Draft, load_skillset
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+OBLIGATIONS_DIR = Path(__file__).resolve().parent.parent / "obligations"
 
 
 @pytest.fixture
-def legislation_skill():
-    return load_skill(SKILLS_DIR / "legislation_advice.md")
+def legislation_policy():
+    return load_policy(OBLIGATIONS_DIR / "legislation.yaml")
 
 
 def _good_draft(**overrides):
-    """A draft that satisfies every obligation in the legislation skill."""
+    """A draft that satisfies every obligation in the legislation policy."""
     base = {
         "answer": "Section 172 requires a director to act in the way he considers...",
         "citations": ("https://www.legislation.gov.uk/ukpga/2006/46/section/172/2021-03-01",),
@@ -41,52 +43,52 @@ def _good_draft(**overrides):
     return Draft(**base)
 
 
-def test_compliant_answer_is_delivered(legislation_skill):
-    result = evaluate(_good_draft(), (legislation_skill,))
+def test_compliant_answer_is_delivered(legislation_policy):
+    result = evaluate(_good_draft(), (legislation_policy,))
     assert result.passed, result.reason()
     assert result.violations == ()
 
 
-def test_unpinned_citation_is_blocked(legislation_skill):
+def test_unpinned_citation_is_blocked(legislation_policy):
     """A citation without a date names a provision but not which version of it.
 
     This is the failure this domain punishes hardest: fluent, correctly cited,
     and silently about a different version of the law.
     """
     draft = _good_draft(citations=("https://www.legislation.gov.uk/ukpga/2006/46/section/172",))
-    result = evaluate(draft, (legislation_skill,))
+    result = evaluate(draft, (legislation_policy,))
     assert not result.passed
     assert "not version-pinned" in result.reason()
 
 
-def test_no_citation_at_all_is_blocked(legislation_skill):
-    result = evaluate(_good_draft(citations=()), (legislation_skill,))
+def test_no_citation_at_all_is_blocked(legislation_policy):
+    result = evaluate(_good_draft(citations=()), (legislation_policy,))
     assert not result.passed
     assert "must_cite" in result.reason()
 
 
-def test_answering_without_a_date_is_blocked(legislation_skill):
+def test_answering_without_a_date_is_blocked(legislation_policy):
     """THE test. The model was asked a date-less question and answered anyway.
 
     A prompt can only make asking likely. This makes answering impossible.
     """
     draft = _good_draft(facts={"as_at_date": None, "unapplied_effects_exist": False})
-    result = evaluate(draft, (legislation_skill,))
+    result = evaluate(draft, (legislation_policy,))
     assert not result.passed
     assert "as_at_date" in result.reason()
 
 
-def test_asking_instead_of_answering_satisfies_the_obligation(legislation_skill):
+def test_asking_instead_of_answering_satisfies_the_obligation(legislation_policy):
     """The escape hatch is asking, not guessing — so asking must pass."""
     draft = _good_draft(
         facts={"as_at_date": None, "unapplied_effects_exist": False},
         asked_user=True,
     )
-    result = evaluate(draft, (legislation_skill,))
+    result = evaluate(draft, (legislation_policy,))
     assert result.passed, result.reason()
 
 
-def test_undisclosed_unapplied_effects_are_blocked(legislation_skill):
+def test_undisclosed_unapplied_effects_are_blocked(legislation_policy):
     """Version-pinning is necessary but not sufficient.
 
     The published text at a date can lawfully omit amendments that are in force
@@ -94,22 +96,22 @@ def test_undisclosed_unapplied_effects_are_blocked(legislation_skill):
     correctly cited and still not the current law.
     """
     draft = _good_draft(facts={"as_at_date": "2021-03-01", "unapplied_effects_exist": True})
-    result = evaluate(draft, (legislation_skill,))
+    result = evaluate(draft, (legislation_policy,))
     assert not result.passed
     assert "unapplied_effects" in result.reason()
 
 
-def test_disclosing_them_satisfies_the_obligation(legislation_skill):
+def test_disclosing_them_satisfies_the_obligation(legislation_policy):
     draft = _good_draft(
         facts={"as_at_date": "2021-03-01", "unapplied_effects_exist": True},
         disclosures=("unapplied_effects",),
     )
-    result = evaluate(draft, (legislation_skill,))
+    result = evaluate(draft, (legislation_policy,))
     assert result.passed, result.reason()
 
 
-def test_untriggered_skills_do_not_judge_the_answer(legislation_skill):
-    """A skill whose guidance never entered the prompt has no business blocking.
+def test_untriggered_policies_do_not_judge_the_answer(legislation_policy):
+    """A policy whose domain never applied has no business blocking.
 
     Obligations are the enforcement half of a specific instruction, not
     free-floating platform policy.
@@ -118,7 +120,7 @@ def test_untriggered_skills_do_not_judge_the_answer(legislation_skill):
     assert result.passed
 
 
-def test_multiple_violations_are_all_reported(legislation_skill):
+def test_multiple_violations_are_all_reported(legislation_policy):
     """Report every failure, not the first.
 
     One at a time means the model fixes one, resubmits, fails on the next, and
@@ -128,7 +130,7 @@ def test_multiple_violations_are_all_reported(legislation_skill):
         citations=(),
         facts={"as_at_date": None, "unapplied_effects_exist": True},
     )
-    result = evaluate(draft, (legislation_skill,))
+    result = evaluate(draft, (legislation_policy,))
     assert len(result.blocking) == 3
 
 
