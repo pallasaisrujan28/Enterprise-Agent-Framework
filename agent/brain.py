@@ -42,6 +42,7 @@ from langchain.agents.middleware.todo import TodoListMiddleware  # type: ignore[
 from langchain.agents.middleware.types import AgentMiddleware
 
 from agent.backends import EAFBackend
+from agent.delegation import build_interpreter_middleware, build_subagents
 from agent.memory.checkpointer import get_checkpointer
 from agent.middleware.obligations import ObligationGateMiddleware
 from agent.model import get_fast_model, get_model, get_model_named
@@ -145,6 +146,12 @@ def build_agent(model_id: str | None = None):
         # are enforcement, declared in obligations/*.yaml, distinct from the
         # skills below which are pure capability disclosed by SkillsMiddleware.
         ObligationGateMiddleware(router=get_fast_model(), policies_dir=OBLIGATIONS_DIR),
+        # The interpreter that makes the sub-agent roster DYNAMIC (adds `eval`
+        # and the `task()` global) and bridges these read-only tools into
+        # interpreter code via PTC. Defined in agent/delegation so this builder
+        # stays plumbing, not policy. PTC allowlist is a permission boundary —
+        # only these retrieval tools, nothing that mutates durable state.
+        build_interpreter_middleware([web_search, fetch_and_store, search_memory]),
     ]
 
     return create_deep_agent(
@@ -153,6 +160,9 @@ def build_agent(model_id: str | None = None):
         backend=backend,
         middleware=middleware,
         checkpointer=_checkpointer,
+        # The subagent roster the interpreter's `task()` dispatches. Defined in
+        # agent/delegation, not here — this builder only assembles the harness.
+        subagents=build_subagents(),
         # `skills`, a list of SOURCES — not `skills_dir`, which this called and
         # which create_deep_agent has never accepted in the pinned version. The
         # whole harness raised TypeError on every build, so no turn had ever run.
