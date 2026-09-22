@@ -1,0 +1,20 @@
+# Obligation policy for the legislation domain.
+#
+# This is the ENFORCEMENT half of what used to live in
+# skills/legislation_advice.md. The skill still teaches the procedure; this file
+# is what the obligation gate holds the answer to. Split so a third-party skill
+# can be installed without carrying (or dodging) obligations, and so a governed
+# domain is enforced whether or not a matching skill happens to be installed.
+#
+# description: the router reads this to decide whether the legislation domain
+#              applies to a given question — it need not mention any skill.
+# obligations: checked by agent/gate.py against the finished answer.
+
+name: legislation
+description: >
+  Questions about what UK legislation says, requires, permits, or prohibits —
+  statute, regulations, and their effect as at a date.
+obligations:
+  - must_cite: {contains: legislation.gov.uk, version_pinned: true}
+  - must_ask_when_missing: {fields: [as_at_date]}
+  - must_disclose: {when: unapplied_effects_exist, disclose: unapplied_effects}

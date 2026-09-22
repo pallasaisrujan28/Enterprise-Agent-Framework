@@ -94,14 +94,17 @@ class Skill:
 class Violation:
     """An obligation that did not hold."""
 
-    skill: str
+    # The governing thing whose obligation failed — an obligation policy's name
+    # now, historically a skill's. Kept generic because the gate is duck-typed
+    # over anything carrying obligations.
+    source: str
     obligation: str
     detail: str
     blocking: bool
 
     def __str__(self) -> str:
         severity = "BLOCK" if self.blocking else "observe"
-        return f"[{severity}] {self.skill}/{self.obligation}: {self.detail}"
+        return f"[{severity}] {self.source}/{self.obligation}: {self.detail}"
 
 
 @dataclass(frozen=True)

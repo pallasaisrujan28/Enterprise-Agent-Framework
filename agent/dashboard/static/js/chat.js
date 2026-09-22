@@ -121,9 +121,9 @@ function gateBadge(gate) {
   return uiBadge("gate · nothing to enforce", "missing");
 }
 
-function skillChips(m) {
-  if (!m.skills || !m.skills.length) { return ""; }
-  return m.skills.map(function (s) { return uiBadge("skill · " + s, "partial"); }).join(" ");
+function policyChips(m) {
+  if (!m.policies || !m.policies.length) { return ""; }
+  return m.policies.map(function (p) { return uiBadge("policy · " + p, "partial"); }).join(" ");
 }
 
 /* The per-turn footer: what it cost and how long it took. Hidden by the stats
@@ -142,7 +142,7 @@ function teleFooter(m) {
 }
 
 function stageStrip(m) {
-  return '<div class="stages">' + gateBadge(m.gate) + " " + skillChips(m) + "</div>" +
+  return '<div class="stages">' + gateBadge(m.gate) + " " + policyChips(m) + "</div>" +
     (m.gate && m.gate.reason
       ? '<div class="tele meta gate-reason">' + esc(m.gate.reason) + "</div>"
       : "");
@@ -197,7 +197,7 @@ function renderChatLog() {
   if (!CHAT.length) {
     return '<div class="chatempty">' +
       "<p>Send a message and watch it run through the harness.</p>" +
-      "<p>Every turn reports which skills triggered and what the obligation " +
+      "<p>Every turn reports which obligation policies triggered and what the " +
       "gate decided.</p>" + "</div>";
   }
   return CHAT.map(function (m) {
@@ -222,7 +222,7 @@ function applyEvent(pending, ev) {
   if (ev.kind === "start") {
     pending.model = ev.model;
     pending.provider = ev.provider;
-    pending.skills = ev.skills || [];
+    pending.policies = ev.policies || [];
     pending.trigger_reason = ev.trigger_reason;
     return;
   }
@@ -257,7 +257,7 @@ function applyEvent(pending, ev) {
     pending.gate = ev.gate;
     pending.usage = ev.usage;
     pending.model = ev.model;
-    pending.skills = ev.skills || [];
+    pending.policies = ev.policies || [];
   }
 }
 

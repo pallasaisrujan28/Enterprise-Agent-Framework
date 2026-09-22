@@ -8,6 +8,13 @@ discloses them to the model; `RubricMiddleware` scores an answer after the fact;
 because a published obligation was not met, and that is the one thing this
 platform exists to do — the model must not be able to reason its way past it.
 
+WHAT THIS ENFORCES: POLICIES, NOT SKILLS
+After the reconciliation (see agent/obligation_policy.py) a skill is pure
+capability and carries no obligations. Enforcement lives in obligation POLICIES,
+declared in `obligations/*.yaml` and enforced by DOMAIN — independent of whether
+a matching skill is installed. This middleware routes the question to the
+policies whose domain applies, then holds the finished answer against them.
+
 WHY MIDDLEWARE RATHER THAN A WRAPPER AROUND THE AGENT
 The previous version of this lived in a hand-rolled turn loop that reimplemented
 create_deep_agent to get a place to put it. As middleware it plugs into the
@@ -29,7 +36,7 @@ obligation is meaningless.
 FAIL CLOSED, AND SAY SO
 waku's gates fail open — a broken gate costs latency, never capability — because
 they protect tokens. This one protects DELIVERY, so the direction is inverted: if
-routing cannot determine which skills apply, the turn is reported as unverified
+routing cannot determine which policies apply, the turn is reported as unverified
 rather than quietly passed. An obligation check that cannot run must never look
 like one that ran and approved.
 """
@@ -50,9 +57,12 @@ from langchain.agents.middleware.types import (
 from langchain_core.messages import AIMessage
 
 from agent import gate
-from agent.skills_engine import Draft, Skill, SkillSet, load_skillset
+from agent.obligation_policy import ObligationPolicy, PolicySet, load_policies
+from agent.skills_engine import Draft
 
-SKILLS_DIR = os.getenv("AGENT_SKILLS_DIR") or str(Path(__file__).parents[2] / "skills")
+OBLIGATIONS_DIR = os.getenv("AGENT_OBLIGATIONS_DIR") or str(
+    Path(__file__).parents[2] / "obligations"
+)
 
 # A clarifying question is short by nature; a long essay containing a rhetorical
 # question has not asked the user anything. Used to infer Draft.asked_user.
@@ -63,14 +73,14 @@ _ASK_MAX_CHARS = 600
 class Verdict:
     """What the gate decided, kept on state so a channel can render it.
 
-    `degraded` is separate from "no skill applied" on purpose. Collapsing them
+    `degraded` is separate from "no policy applied" on purpose. Collapsing them
     means a turn whose routing FAILED reports the same clean result as a turn that
     was genuinely unregulated — which is how a compliance gate stops being one.
     """
 
     decision: str
     reason: str
-    skills: tuple[str, ...] = ()
+    policies: tuple[str, ...] = ()
     blocking: tuple[str, ...] = ()
     observed: tuple[str, ...] = ()
     draft: str = ""
@@ -79,25 +89,22 @@ class Verdict:
         return {
             "decision": self.decision,
             "reason": self.reason,
-            "skills": list(self.skills),
+            "policies": list(self.policies),
             "blocking": list(self.blocking),
             "observed": list(self.observed),
             "draft": self.draft,
         }
 
 
-def load_skills(directory: str | None = None) -> SkillSet:
-    """Skills from disk, or an empty set when there are none.
+def load_obligation_policies(directory: str | None = None) -> PolicySet:
+    """Obligation policies from disk, or an empty set when there are none.
 
-    A missing directory is not an error — a harness with no skills is valid, just
-    one with nothing to enforce. A MALFORMED skill is allowed to raise, because a
-    skill whose obligations cannot be parsed must not be treated as absent; that
-    would silently drop enforcement.
+    A missing directory is not an error — a harness with no policies is valid,
+    just one with nothing to enforce. A MALFORMED policy is allowed to raise,
+    because a policy whose obligations cannot be parsed must not be treated as
+    absent; that would silently drop enforcement.
     """
-    path = Path(directory or SKILLS_DIR)
-    if not path.is_dir():
-        return SkillSet(skills=(), version="none")
-    return load_skillset(path)
+    return load_policies(Path(directory or OBLIGATIONS_DIR))
 
 
 def draft_from(text: str) -> Draft:
@@ -139,9 +146,9 @@ class ObligationState(AgentState):
 
 
 class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, ResponseT]):
-    """Withholds an answer that does not satisfy the obligations of a live skill.
+    """Withholds an answer that does not satisfy the obligations of a live policy.
 
-    `router` is a LangChain chat model used to decide which skills apply — pass
+    `router` is a LangChain chat model used to decide which policies apply — pass
     the FAST model. Omit it and routing falls back to word matching, which is
     measurably too weak to rely on and marks the turn degraded when it finds
     nothing.
@@ -150,77 +157,90 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
     name = "ObligationGateMiddleware"
     state_schema = ObligationState
 
-    def __init__(self, router: Any = None, skills_dir: str | None = None) -> None:
+    def __init__(self, router: Any = None, policies_dir: str | None = None) -> None:
         super().__init__()
         self._router = router
-        self._skills_dir = skills_dir
+        self._policies_dir = policies_dir
 
     # ── routing ───────────────────────────────────────────────────────────────
 
-    def _route(self, message: str, skillset: SkillSet) -> tuple[tuple[Skill, ...], str, bool]:
-        """Which skills apply, why, and whether the answer is trustworthy."""
-        if not skillset.skills:
-            return (), "no skills are loaded, so there are no obligations to enforce", False
+    def _route(
+        self, message: str, policyset: PolicySet
+    ) -> tuple[tuple[ObligationPolicy, ...], str, bool]:
+        """Which policies apply, why, and whether the answer is trustworthy."""
+        if not policyset.policies:
+            return (), "no obligation policies are loaded, so there is nothing to enforce", False
 
         if self._router is None:
-            skills, reason = self._route_lexically(message, skillset)
-            return skills, reason, not skills
+            policies, reason = self._route_lexically(message, policyset)
+            return policies, reason, not policies
 
         try:
-            skills, reason = self._route_with_model(message, skillset)
-            return skills, reason, False
+            policies, reason = self._route_with_model(message, policyset)
+            return policies, reason, False
         except Exception as exc:
-            skills, reason = self._route_lexically(message, skillset)
-            return skills, f"ROUTER UNAVAILABLE ({type(exc).__name__}: {exc}); {reason}", not skills
+            policies, reason = self._route_lexically(message, policyset)
+            return (
+                policies,
+                f"ROUTER UNAVAILABLE ({type(exc).__name__}: {exc}); {reason}",
+                not policies,
+            )
 
-    def _route_with_model(self, message: str, skillset: SkillSet) -> tuple[tuple[Skill, ...], str]:
-        """Ask a cheap model which skills apply, from the one-line index.
+    def _route_with_model(
+        self, message: str, policyset: PolicySet
+    ) -> tuple[tuple[ObligationPolicy, ...], str]:
+        """Ask a cheap model which policies apply, from the one-line index.
 
-        This is what `Skill.index_line()` exists for, and it reads the CATEGORY of
-        a question rather than matching its words — which is why it catches
-        "Equality Act 2010" as a legislation question when word matching cannot.
+        This is what `ObligationPolicy.index_line()` exists for, and it reads the
+        DOMAIN of a question rather than matching its words — which is why it
+        catches "Equality Act 2010" as a legislation question when word matching
+        cannot.
 
-        The reply is not trusted: only names present in the skillset are accepted,
-        so a hallucinated name is dropped rather than enabling nothing silently.
+        The reply is not trusted: only names present in the policy set are
+        accepted, so a hallucinated name is dropped rather than enabling nothing
+        silently.
         """
         prompt = (
-            "Which of these skills apply to the user's message? A skill applies if "
-            "its description covers the KIND of question being asked.\n\n"
-            f"{skillset.index_block()}\n\n"
+            "Which of these obligation policies apply to the user's message? A "
+            "policy applies if its description covers the DOMAIN of the question "
+            "being asked.\n\n"
+            f"{policyset.index_block()}\n\n"
             f"User message: {message}\n\n"
-            "Reply with the applicable skill names, comma separated, and nothing "
+            "Reply with the applicable policy names, comma separated, and nothing "
             "else. Reply with exactly NONE if none apply."
         )
         answer = self._router.invoke(prompt).text.strip()
         named = {t.strip().strip(".,`'\"").lower() for t in answer.replace("\n", ",").split(",")}
-        skills = tuple(s for s in skillset.skills if s.name.lower() in named)
-        if not skills:
-            return (), f"router judged that no skill applies (said: {answer[:60]!r})"
-        return skills, "router selected " + ", ".join(s.name for s in skills)
+        policies = tuple(p for p in policyset.policies if p.name.lower() in named)
+        if not policies:
+            return (), f"router judged that no policy applies (said: {answer[:60]!r})"
+        return policies, "router selected " + ", ".join(p.name for p in policies)
 
     @staticmethod
-    def _route_lexically(message: str, skillset: SkillSet) -> tuple[tuple[Skill, ...], str]:
+    def _route_lexically(
+        message: str, policyset: PolicySet
+    ) -> tuple[tuple[ObligationPolicy, ...], str]:
         """Word overlap. THE FALLBACK, never the mechanism.
 
         Measured too weak to rely on: "What does the Equality Act 2010 require of
         employers?" shares no word with "legislation advice / Answering questions
-        about UK statute", so the skill never fired and the gate sat dead on
+        about UK statute", so the policy never fired and the gate sat dead on
         exactly the traffic it exists to police. Kept because it needs no model
         call and so still works when the router is down.
         """
         words = {w.strip(".,?!:;\"'()").lower() for w in message.split() if len(w.strip()) >= 4}
-        hits: list[Skill] = []
-        for skill in skillset.skills:
+        hits: list[ObligationPolicy] = []
+        for policy in policyset.policies:
             vocab = {
                 t.strip(".,").lower()
-                for t in f"{skill.name.replace('_', ' ')} {skill.description}".split()
+                for t in f"{policy.name.replace('_', ' ')} {policy.description}".split()
                 if len(t) >= 4
             }
             if words & vocab:
-                hits.append(skill)
+                hits.append(policy)
         if not hits:
-            return (), "no skill matched the message lexically"
-        return tuple(hits), "lexical match on " + ", ".join(s.name for s in hits)
+            return (), "no policy matched the message lexically"
+        return tuple(hits), "lexical match on " + ", ".join(p.name for p in hits)
 
     # ── the hook ──────────────────────────────────────────────────────────────
 
@@ -242,24 +262,24 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
             (m.text for m in messages if getattr(m, "type", "") == "human"),
             "",
         )
-        skillset = load_skills(self._skills_dir)
-        skills, reason, degraded = self._route(first_user, skillset)
-        result = gate.evaluate(draft_from(answer), skills)
+        policyset = load_obligation_policies(self._policies_dir)
+        policies, reason, degraded = self._route(first_user, policyset)
+        result = gate.evaluate(draft_from(answer), policies)
 
         if degraded:
             verdict = Verdict(
                 "unverified",
-                "could not determine which skills apply, so NO obligation was "
+                "could not determine which policies apply, so NO obligation was "
                 f"checked on this answer — {reason}",
                 draft=answer,
             )
-        elif not skills:
+        elif not policies:
             verdict = Verdict("nothing-to-enforce", reason, draft=answer)
         elif result.passed:
             verdict = Verdict(
                 "pass",
-                f"{len(skills)} skill(s) checked, no blocking violation",
-                tuple(s.name for s in skills),
+                f"{len(policies)} policy(ies) checked, no blocking violation",
+                tuple(p.name for p in policies),
                 observed=tuple(str(v) for v in result.observed),
                 draft=answer,
             )
@@ -267,7 +287,7 @@ class ObligationGateMiddleware(AgentMiddleware[ObligationState, ContextT, Respon
             verdict = Verdict(
                 "block",
                 result.reason(),
-                tuple(s.name for s in skills),
+                tuple(p.name for p in policies),
                 tuple(str(v) for v in result.blocking),
                 tuple(str(v) for v in result.observed),
                 answer,
@@ -294,7 +314,7 @@ def _refusal(result: gate.GateResult) -> str:
     """
     lines = [
         "**Withheld by the obligation gate.** The model produced an answer, but it "
-        "did not satisfy the obligations attached to the skill that applies here, "
+        "did not satisfy the obligations of the policy that governs this domain, "
         "so it was not delivered.",
         "",
     ]

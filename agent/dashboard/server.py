@@ -24,7 +24,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from agent.dashboard import topology
-from agent.middleware.obligations import load_skills
+from agent.middleware.obligations import load_obligation_policies
 from agent.model import (
     FAST_MODEL_ID,
     MODEL_ID,
@@ -387,7 +387,7 @@ class Handler(BaseHTTPRequestHandler):
                 "draft": verdict.get("draft", ""),
                 "refused": refused,
                 "gate": verdict,
-                "skills": verdict.get("skills", []),
+                "policies": verdict.get("policies", []),
                 "tools": tools_called,
                 "model": model_id or MODEL_ID,
                 "usage": usage,
@@ -433,7 +433,7 @@ def _describe_config() -> dict[str, Any]:
     SOURCE. There is deliberately no endpoint that can return a secret value, so a
     future bug cannot turn one into a leak.
     """
-    skillset = load_skills()
+    policyset = load_obligation_policies()
     return {
         "provider": "bedrock",
         "harness": "deepagents",
@@ -442,9 +442,9 @@ def _describe_config() -> dict[str, Any]:
         "region": REGION,
         "credential_source": credential_source(),
         "verified_models": [dict(entry) for entry in VERIFIED_MODELS],
-        "skills": [
-            {"name": s.name, "description": s.description, "obligations": len(s.obligations)}
-            for s in skillset.skills
+        "policies": [
+            {"name": p.name, "description": p.description, "obligations": len(p.obligations)}
+            for p in policyset.policies
         ],
         "persistence": (
             "the graph checkpointer. AGENTCORE_MEMORY_ID unset means an in-process "

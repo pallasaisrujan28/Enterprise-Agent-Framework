@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from agent.skills_engine.model import Draft, Obligation
+from agent.skills_engine.model import MODE_ENFORCE, MODES, Draft, Obligation
 
 # A checker inspects a draft and returns None (holds) or a reason (violated).
 Checker = Callable[[Draft, Obligation], str | None]
@@ -45,11 +45,45 @@ def known_kinds() -> tuple[str, ...]:
 def check(draft: Draft, obligation: Obligation) -> str | None:
     checker = _REGISTRY.get(obligation.kind)
     if checker is None:
-        # Fail closed. An unknown obligation kind means the skill file expects a
+        # Fail closed. An unknown obligation kind means the declaration expects a
         # guarantee this build cannot provide, and silently ignoring it would
         # hand the tenant a control that does nothing.
         return f"unknown obligation kind '{obligation.kind}'"
     return checker(draft, obligation)
+
+
+def parse_obligations(raw: object, source: str) -> tuple[Obligation, ...]:
+    """Parse the `obligations:` list — the ONE format, shared by two callers.
+
+    Skill files carried obligations in their frontmatter; obligation policies
+    carry them in a YAML file. Both parse the same list-of-single-key-mappings
+    shape, so the parsing lives here, once, next to the registry it validates
+    against. Raising a plain ValueError lets each caller wrap it in its own error
+    type (SkillError, PolicyError) with file context, without this module having
+    to import either and create a cycle.
+    """
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        raise ValueError(f"{source}: 'obligations' must be a list")
+
+    parsed: list[Obligation] = []
+    for entry in raw:
+        if not isinstance(entry, dict) or len(entry) != 1:
+            raise ValueError(
+                f"{source}: each obligation must be a single-key mapping, got {entry!r}"
+            )
+        kind, params = next(iter(entry.items()))
+        params = dict(params or {})
+        mode = str(params.pop("mode", MODE_ENFORCE))
+        if mode not in MODES:
+            raise ValueError(f"{source}: obligation '{kind}' has unknown mode '{mode}'")
+        if kind not in known_kinds():
+            raise ValueError(
+                f"{source}: unknown obligation kind '{kind}'. Known: {', '.join(known_kinds())}"
+            )
+        parsed.append(Obligation(kind=kind, params=params, mode=mode))
+    return tuple(parsed)
 
 
 # --------------------------------------------------------------------------
