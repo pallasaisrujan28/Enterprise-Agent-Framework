@@ -47,44 +47,30 @@ def missing_package(name: str, exc: Exception) -> bool:
     )
 
 
-def check_qdrant() -> bool:
-    url = os.getenv("QDRANT_URL", "http://localhost:6333")
-    try:
-        import httpx
-
-        r = httpx.get(f"{url}/collections", timeout=5)
-        r.raise_for_status()
-        names = [c["name"] for c in r.json()["result"]["collections"]]
-        return result("qdrant", True, f"{url} — {len(names)} collection(s): {names or 'none yet'}")
-    except ImportError as exc:
-        return missing_package("qdrant", exc)
-    except Exception as exc:
-        return result(
-            "qdrant", False, f"{url} — {type(exc).__name__}: {exc}", "docker compose up -d qdrant"
-        )
-
-
 def check_search() -> bool:
-    """The web-search backend, making the same call web_search makes.
+    """The web-search MCP tool, making the same call the agent makes.
 
-    Whichever backend is configured — duckduckgo by default, needing no
-    container. A real query, because the failure worth catching is an empty
-    result set (a blocked scrape, a rate limit), which only a live call reveals.
+    Search now flows through the SearXNG MCP server (npx mcp-searxng → SEARXNG
+    instance), so this exercises the whole chain: the MCP subprocess starts, the
+    session opens, and a real query returns results. An empty set means SearXNG
+    is down or SEARXNG_URL is wrong — worth catching before a turn does.
     """
     try:
-        from agent.tools import search_backend
+        from agent.tools.searxng_mcp import SEARXNG_URL, build_search_tools
 
-        hits = search_backend.search("amazon bedrock", max_results=5)
-        name = search_backend.backend_name()
-        if not hits:
+        tools = build_search_tools()
+        search = next((t for t in tools if "search" in t.name.lower()), None)
+        if search is None:
+            return result("search (searxng mcp)", False, "MCP server exposed no search tool")
+        out = str(search.invoke({"query": "amazon bedrock"}))
+        if not out.strip():
             return result(
-                f"search ({name})",
+                "search (searxng mcp)",
                 False,
                 "zero results",
-                "duckduckgo may be rate-limiting; retry, or set "
-                "SEARCH_BACKEND=searxng with the container up",
+                f"is SearXNG up at {SEARXNG_URL}? check the container",
             )
-        return result(f"search ({name})", True, f"{len(hits)} results — {hits[0]['url'][:48]}")
+        return result("search (searxng mcp)", True, f"{len(out)} chars via {SEARXNG_URL}")
     except ImportError as exc:
         return missing_package("search", exc)
     except Exception as exc:
@@ -222,7 +208,7 @@ def check_turn() -> bool:
 def main() -> int:
     print("Local stack check — each line makes the same call the application makes.\n")
     print(" containers:")
-    container_ok = all([check_qdrant(), check_search(), check_minio(), check_fetch()])
+    container_ok = all([check_search(), check_minio(), check_fetch()])
     print("\n not a container, by decision (ADR-011):")
     remote_ok = check_bedrock()
     print("\n end to end:")

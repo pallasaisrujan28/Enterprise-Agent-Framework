@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -68,6 +69,47 @@ _NO_AUTH_WARNING = (
 # thread, so two tabs posting at once would otherwise build two.
 _AGENTS: dict[str, Any] = {}
 _AGENTS_LOCK = threading.Lock()
+
+# Which argument best identifies what a tool call actually did, per tool. The
+# query for a search, the URL for a fetch — the thing worth showing so a human
+# can validate the agent used fresh, relevant sources.
+_ACTIVITY_ARG: dict[str, str] = {
+    "searxng_web_search": "query",
+    "searxngWebSearch": "query",  # camelCase, as PTC exposes it to interpreter code
+    "web_search": "query",
+    "search_memory": "query",
+    "fetch_and_store": "url",
+    "read_file": "file_path",
+    "eval": "code",
+    "task": "description",
+}
+
+
+def _tool_activity(messages: list[Any]) -> list[dict[str, str]]:
+    """Every tool call in a turn as [{tool, detail}], in order.
+
+    Reads from the finished messages, where each AIMessage carries complete
+    `tool_calls` with resolved args — unlike the token stream, which delivers
+    those args in fragments. `detail` is the single most informative argument
+    (a query, a URL), truncated, so the trail stays scannable.
+    """
+    steps: list[dict[str, str]] = []
+    for m in messages:
+        for call in getattr(m, "tool_calls", None) or []:
+            name = call.get("name", "?")
+            args = call.get("args") or {}
+            key = _ACTIVITY_ARG.get(name)
+            detail = ""
+            if key and isinstance(args, dict) and args.get(key) is not None:
+                detail = str(args[key])
+            elif isinstance(args, dict) and args:
+                # Fall back to the first arg value so unknown tools still show
+                # something rather than a bare name.
+                detail = str(next(iter(args.values())))
+            if len(detail) > 200:
+                detail = detail[:200] + "…"
+            steps.append({"tool": name, "detail": detail})
+    return steps
 
 
 def _agent_for(model_id: str = ""):
@@ -369,6 +411,14 @@ class Handler(BaseHTTPRequestHandler):
         final = values.get("messages", [])
         reply = getattr(final[-1], "text", "") if final else ""
 
+        # What the agent actually DID — every tool call with its key argument, in
+        # order. This is the "show the searches and links" view: web_search shows
+        # the query, fetch_and_store shows the URL. Read from the final messages,
+        # where tool-call args are complete (the stream carries them in fragments).
+        activity = _tool_activity(final)
+        if activity:
+            self._send_frame({"kind": "activity", "steps": activity})
+
         self._send_frame(
             {
                 "kind": "gate",
@@ -395,6 +445,11 @@ class Handler(BaseHTTPRequestHandler):
             f"usage={usage or '{}'}",
             flush=True,
         )
+        # The step-by-step trail, one line each, so the terminal shows exactly
+        # which queries were searched and which URLs were fetched — the detail
+        # needed to validate whether the answer came from fresh sources.
+        for step in activity:
+            print(f"  · {step['tool']}: {step['detail']}", flush=True)
 
         self._send_frame(
             {
@@ -405,6 +460,7 @@ class Handler(BaseHTTPRequestHandler):
                 "gate": verdict,
                 "policies": verdict.get("policies", []),
                 "tools": tools_called,
+                "activity": activity,
                 "model": model_id or MODEL_ID,
                 "usage": usage,
                 # A blocked turn has already streamed the withheld text to the
@@ -442,6 +498,27 @@ class Handler(BaseHTTPRequestHandler):
         self._send(target.read_bytes(), content_type or "application/octet-stream")
 
 
+def _tracing_status() -> str:
+    """Whether LangSmith tracing is on — by env, the way LangChain enables it.
+
+    LangGraph/LangChain auto-trace to LangSmith when `LANGSMITH_TRACING` (or the
+    legacy `LANGCHAIN_TRACING_V2`) is truthy and an API key is present. No code
+    wires it; it is purely environment, so this only reports what the env says.
+    """
+    on = (os.getenv("LANGSMITH_TRACING") or os.getenv("LANGCHAIN_TRACING_V2") or "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    has_key = bool(os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY"))
+    if on and has_key:
+        project = os.getenv("LANGSMITH_PROJECT") or os.getenv("LANGCHAIN_PROJECT") or "default"
+        return f"LangSmith tracing ON (project={project})"
+    if on and not has_key:
+        return "LangSmith tracing requested but no API key set"
+    return "off — set LANGSMITH_TRACING=true and LANGSMITH_API_KEY to enable"
+
+
 def _describe_config() -> dict[str, Any]:
     """What the harness is configured to do, for the UI to state plainly.
 
@@ -457,6 +534,7 @@ def _describe_config() -> dict[str, Any]:
         "fast_model": FAST_MODEL_ID,
         "region": REGION,
         "credential_source": credential_source(),
+        "tracing": _tracing_status(),
         "verified_models": [dict(entry) for entry in VERIFIED_MODELS],
         "policies": [
             {"name": p.name, "description": p.description, "obligations": len(p.obligations)}

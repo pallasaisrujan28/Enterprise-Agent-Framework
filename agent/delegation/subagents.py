@@ -26,8 +26,8 @@ from __future__ import annotations
 
 from deepagents import SubAgent
 
-from agent.tools.fetch_and_store import fetch_and_store
-from agent.tools.web_search import web_search
+from agent.tools.fetch import fetch_url
+from agent.tools.searxng_mcp import build_search_tools
 
 
 def build_subagents() -> list[SubAgent]:
@@ -57,6 +57,6 @@ def build_subagents() -> list[SubAgent]:
                 "source URLs you relied on. Do not speculate beyond what the "
                 "sources support; if the evidence is thin, say so."
             ),
-            tools=[web_search, fetch_and_store],
+            tools=[*build_search_tools(), fetch_url],
         )
     ]

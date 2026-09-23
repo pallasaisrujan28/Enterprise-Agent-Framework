@@ -18,6 +18,14 @@ dependencies = [
     # including the FastAPI service the Dockerfile runs as its CMD, failed at
     # import with "No module named 'langchain_aws'".
     "deepagents[aws]>=0.7",
+    # Web search is provided by an MCP server (SearXNG behind the Model Context
+    # Protocol), loaded into the harness with these adapters. See
+    # agent/tools/searxng_mcp.py. The server itself runs via `npx mcp-searxng`.
+    "langchain-mcp-adapters>=0.3",
+    # Durable memory: Graphiti builds a temporal knowledge graph (episodic +
+    # semantic) on Neo4j. Custom Bedrock LLM/embedder clients keep it on our
+    # credentials. Enabled at runtime with AGENT_MEMORY=on. See agent/memory/.
+    "graphiti-core>=0.30",
     # Dynamic sub-agents: a sandboxed QuickJS interpreter that exposes an `eval`
     # tool and a `task()` global, letting the model orchestrate sub-agents from
     # code (and call allowlisted tools via PTC). Wired in agent/delegation. Pulls
@@ -26,7 +34,6 @@ dependencies = [
     # Bedrock inference (IRSA auth, no stored credentials)
     "boto3>=1.35",
     # Tool backends
-    "qdrant-client>=1.9",
     "httpx>=0.27",
     "numpy>=1.26",
     # API server
@@ -36,10 +43,6 @@ dependencies = [
     # markdown from raw HTML with no browser and no service. See
     # agent/tools/fetch_backend.py for why this exists alongside Firecrawl.
     "trafilatura>=1.12",
-    # DuckDuckGo search for the `duckduckgo` search backend — no service, no key.
-    # The maintained library rather than a raw HTML scrape, which DuckDuckGo now
-    # blocks. See agent/tools/search_backend.py.
-    "ddgs>=9.0",
 ]
 
 [project.optional-dependencies]

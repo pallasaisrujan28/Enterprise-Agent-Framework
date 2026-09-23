@@ -78,43 +78,43 @@ def _discover_gateway_tools() -> list:  # type: ignore[return-value]
     resp.raise_for_status()
     tool_defs = resp.json().get("result", {}).get("tools", [])
 
-    try:
-        from langchain_mcp_adapters.tools import load_mcp_tools  # type: ignore[import]
+    # Each Gateway tool becomes a StructuredTool that calls back through the
+    # Gateway's MCP tools/call. NOTE: this is the TARGET architecture and is not
+    # on any live path yet (nothing constructs ToolRegistry with a Gateway
+    # endpoint). The in-use MCP integration is agent/tools/searxng_mcp.py, which
+    # uses langchain-mcp-adapters' session API correctly; this hand-rolled
+    # JSON-RPC wrapper stays until the Gateway is real.
+    from langchain_core.tools import StructuredTool
 
-        return load_mcp_tools(tool_defs, endpoint=GATEWAY_ENDPOINT, auth_headers_fn=auth_headers)
-    except ImportError:
-        # langchain-mcp-adapters not installed — return a minimal wrapper
-        from langchain_core.tools import StructuredTool
+    tools = []
+    for td in tool_defs:
 
-        tools = []
-        for td in tool_defs:
-
-            def _make_call(name: str):
-                def _call(**kwargs: object) -> str:
-                    r = httpx.post(
-                        f"{GATEWAY_ENDPOINT}/mcp",
-                        json={
-                            "jsonrpc": "2.0",
-                            "id": 1,
-                            "method": "tools/call",
-                            "params": {"name": name, "arguments": kwargs},
-                        },
-                        headers={**auth_headers(), "Content-Type": "application/json"},
-                        timeout=60,
-                    )
-                    r.raise_for_status()
-                    return str(r.json().get("result", {}).get("content", ""))
-
-                return _call
-
-            tools.append(
-                StructuredTool.from_function(
-                    func=_make_call(td["name"]),
-                    name=td["name"],
-                    description=td.get("description", ""),
+        def _make_call(name: str):
+            def _call(**kwargs: object) -> str:
+                r = httpx.post(
+                    f"{GATEWAY_ENDPOINT}/mcp",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "tools/call",
+                        "params": {"name": name, "arguments": kwargs},
+                    },
+                    headers={**auth_headers(), "Content-Type": "application/json"},
+                    timeout=60,
                 )
+                r.raise_for_status()
+                return str(r.json().get("result", {}).get("content", ""))
+
+            return _call
+
+        tools.append(
+            StructuredTool.from_function(
+                func=_make_call(td["name"]),
+                name=td["name"],
+                description=td.get("description", ""),
             )
-        return tools
+        )
+    return tools
 
 
 @dataclass

@@ -250,7 +250,26 @@ tr:last-child td { border-bottom: none; }
      no longer needed now that the body does not scroll. */
   height: 100vh;
   overflow: hidden;
+  /* position: relative so the drag handle can sit on the dock's left edge */
+  position: relative;
 }
+
+/* Drag handle on the dock's left edge — grab it to widen or narrow the chat.
+   A thin invisible strip that hints on hover; the actual resize is in chat.js
+   (sets --dock-width, persisted to localStorage). */
+.dock-resizer {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 6;
+}
+.dock-resizer:hover,
+body.dock-resizing .dock-resizer { background: var(--accent); opacity: 0.35; }
+body.dock-resizing { cursor: col-resize; user-select: none; }
+body.dock-closed .dock-resizer { display: none; }
 
 .dockhead {
   display: flex;

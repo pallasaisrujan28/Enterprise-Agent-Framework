@@ -228,9 +228,9 @@ def test_tool_error_becomes_a_readable_string_naming_the_tool() -> None:
     from agent.brain import _tool_error_message
 
     class Req:
-        tool_call = {"name": "fetch_and_store"}
+        tool_call = {"name": "fetch_url"}
 
     out = _tool_error_message(ConnectionError("no route to host"), Req())
     assert isinstance(out, str)
-    assert "fetch_and_store" in out
+    assert "fetch_url" in out
     assert "ConnectionError" in out

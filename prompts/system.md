@@ -17,11 +17,9 @@ the path so they can retrieve it.
 
 ## Tools
 
-You have access to tools for web research. Before fetching a URL,
-always check session memory first — you may have already read that page.
-
-Use `search_memory` before `fetch_and_store` to avoid re-fetching.
-Use `web_search` to find URLs, then `fetch_and_store` to read them in full.
+You have access to tools for web research.
+Use `searxng_web_search` to find URLs, then `fetch_url` to read a promising
+result in full. The page content comes back for you to reason over directly.
 
 ## Long content
 
