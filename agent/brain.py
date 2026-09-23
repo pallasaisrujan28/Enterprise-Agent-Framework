@@ -48,11 +48,12 @@ from agent.delegation import (
     build_interpreter_middleware,
     build_subagents,
 )
+from agent.memory import semantic
 from agent.memory.checkpointer import get_checkpointer
+from agent.middleware.memory import MemoryMiddleware
 from agent.middleware.obligations import ObligationGateMiddleware
 from agent.model import get_fast_model, get_model, get_model_named
-from agent.tools.fetch_and_store import fetch_and_store
-from agent.tools.search_memory import search_memory
+from agent.tools.fetch import fetch_url
 from agent.tools.searxng_mcp import build_search_tools
 
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
@@ -182,12 +183,18 @@ def build_agent(model_id: str | None = None):
         # interpreter code via PTC. Defined in agent/delegation so this builder
         # stays plumbing, not policy. PTC allowlist is a permission boundary —
         # only these retrieval tools, nothing that mutates durable state.
-        build_interpreter_middleware([*search_tools, fetch_and_store, search_memory]),
+        build_interpreter_middleware([*search_tools, fetch_url]),
     ]
+
+    # Durable memory (Graphiti on Neo4j) — added only when AGENT_MEMORY=on, so
+    # tests and Neo4j-less deploys are unaffected. The fast model runs the
+    # retrieval gate that decides when a turn needs long-term recall.
+    if semantic.memory_enabled():
+        middleware.append(MemoryMiddleware(router=get_fast_model()))
 
     return create_deep_agent(
         model=get_model_named(model_id) if model_id else get_model(),
-        tools=[*search_tools, fetch_and_store, search_memory],
+        tools=[*search_tools, fetch_url],
         # Freshness anchor (today's date + "verify time-sensitive facts") plus the
         # delegation guidance that replaces the interpreter's "say 'workflow'"
         # heuristic with a judgement on the shape of the task.

@@ -47,23 +47,6 @@ def missing_package(name: str, exc: Exception) -> bool:
     )
 
 
-def check_qdrant() -> bool:
-    url = os.getenv("QDRANT_URL", "http://localhost:6333")
-    try:
-        import httpx
-
-        r = httpx.get(f"{url}/collections", timeout=5)
-        r.raise_for_status()
-        names = [c["name"] for c in r.json()["result"]["collections"]]
-        return result("qdrant", True, f"{url} — {len(names)} collection(s): {names or 'none yet'}")
-    except ImportError as exc:
-        return missing_package("qdrant", exc)
-    except Exception as exc:
-        return result(
-            "qdrant", False, f"{url} — {type(exc).__name__}: {exc}", "docker compose up -d qdrant"
-        )
-
-
 def check_search() -> bool:
     """The web-search MCP tool, making the same call the agent makes.
 
@@ -225,7 +208,7 @@ def check_turn() -> bool:
 def main() -> int:
     print("Local stack check — each line makes the same call the application makes.\n")
     print(" containers:")
-    container_ok = all([check_qdrant(), check_search(), check_minio(), check_fetch()])
+    container_ok = all([check_search(), check_minio(), check_fetch()])
     print("\n not a container, by decision (ADR-011):")
     remote_ok = check_bedrock()
     print("\n end to end:")

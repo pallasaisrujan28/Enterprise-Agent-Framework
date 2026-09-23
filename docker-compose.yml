@@ -18,9 +18,8 @@
 # today, and starting containers no code connects to is the same mistake as a CI
 # gate for a component that does not exist. They arrive with their consumers.
 #
-#   covered      web_search (SearXNG) · search_memory and session working memory
-#                (Qdrant) · workspace read/write (MinIO over the S3 API) ·
-#                fetch_and_store / crawl_site via the `direct` fetch backend
+#   covered      web_search (SearXNG) · workspace read/write (MinIO over the S3
+#                API) · fetch_url via the `direct` fetch backend
 #                (httpx + trafilatura, in-process — no container needed)
 #
 # Page fetching needs NO service locally. Firecrawl self-hosting is six services
@@ -40,27 +39,31 @@
 name: eaf-local
 
 services:
-  # ── vector store ──────────────────────────────────────────────────────────
-  # Session working memory and the search_memory tool. Same client, same API
-  # locally and in cluster — the swap is QDRANT_URL and nothing else.
-  qdrant:
-    image: qdrant/qdrant:v1.19.1
+  # ── graph store (durable memory) ────────────────────────────────────────────
+  # Neo4j backs Graphiti — the temporal knowledge graph that holds episodic
+  # (what happened) and semantic (what is durably true) memory in one store.
+  # Same Cypher engine local and in cluster; the swap is NEO4J_URI and nothing
+  # else. graphiti_core writes episodes and the entities/edges it extracts here.
+  neo4j:
+    image: neo4j:5.26.0
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6333:6333"   # REST
-      - "127.0.0.1:6334:6334"   # gRPC
+      - "127.0.0.1:7474:7474"   # HTTP browser UI
+      - "127.0.0.1:7687:7687"   # Bolt (the driver connects here)
+    environment:
+      # Local-only dev credentials; the cluster injects real ones. Not a secret.
+      NEO4J_AUTH: neo4j/eaflocal-dev-password
+      # APOC is what Graphiti's index/constraint setup expects.
+      NEO4J_PLUGINS: '["apoc"]'
     volumes:
-      - qdrant-data:/qdrant/storage
+      - neo4j-data:/data
     mem_limit: 1g
     healthcheck:
-      # Qdrant's image has no curl or wget, so the check uses bash's own /dev/tcp
-      # rather than a binary that is not there. A TCP accept is weaker than a
-      # readiness probe and is the strongest thing available in this image.
-      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/6333' || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 10s
+      retries: 20
+      start_period: 20s
 
   # ── web search ────────────────────────────────────────────────────────────
   # Self-hosted metasearch: no API key, no per-query cost, and it aggregates
@@ -141,5 +144,5 @@ services:
     restart: "no"
 
 volumes:
-  qdrant-data:
+  neo4j-data:
   minio-data:

@@ -17,7 +17,24 @@
 
 /* Every turn in this conversation. The dock is a pure function of this array. */
 var CHAT = [];
-var SESSION = "default";
+/* The conversation thread id. NEVER "default" — a shared default means two tabs
+ * or two clients collide into one conversation. We mint a unique id on first
+ * load and persist it, so a refresh keeps the same chat but nothing else shares
+ * it. "New chat" replaces it with a fresh one. */
+var SESSION = (function () {
+  function mint() {
+    return "web-" + (window.crypto && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+  }
+  try {
+    var s = localStorage.getItem("eaf_session");
+    if (!s) { s = mint(); localStorage.setItem("eaf_session", s); }
+    return s;
+  } catch (e) {
+    return mint();
+  }
+})();
 var CONFIG = null;
 
 /* The model this conversation uses, or "" for whatever the server defaults to. */
@@ -368,7 +385,10 @@ async function newChat() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "new" })
   }).then(function (r) { return r.json(); }).catch(function () { return {}; });
-  if (res.session) { SESSION = res.session; }
+  if (res.session) {
+    SESSION = res.session;
+    try { localStorage.setItem("eaf_session", SESSION); } catch (e) { /* ignore */ }
+  }
   CHAT = [];
   syncChatLog();
 }
@@ -461,6 +481,47 @@ async function wireDock() {
   var saved = localStorage.getItem("eaf_dock_closed");
   setDockClosed(saved === null ? window.innerWidth < 1200 : saved === "1");
 
+  wireDockResizer();
+
   applyStats();
   syncChatLog();
+}
+
+/* Drag-to-resize the chat dock. Sets --dock-width (which the dock's width and
+ * flex-basis both read) live as you drag, clamps to sane bounds, and remembers
+ * the width across reloads. Width is measured from the right edge of the window,
+ * since the dock is the right-most column. */
+function setDockWidth(px) {
+  var min = 320;
+  var max = Math.max(min, window.innerWidth - 360); // leave room for the diagram
+  var w = Math.min(max, Math.max(min, px));
+  document.documentElement.style.setProperty("--dock-width", w + "px");
+  localStorage.setItem("eaf_dock_width", String(Math.round(w)));
+}
+
+function wireDockResizer() {
+  var handle = document.getElementById("dock-resizer");
+  if (!handle) { return; }
+
+  var saved = parseInt(localStorage.getItem("eaf_dock_width") || "", 10);
+  if (!isNaN(saved)) { setDockWidth(saved); }
+
+  var dragging = false;
+  handle.addEventListener("mousedown", function (e) {
+    dragging = true;
+    document.body.classList.add("dock-resizing");
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", function (e) {
+    if (!dragging) { return; }
+    setDockWidth(window.innerWidth - e.clientX);
+  });
+  window.addEventListener("mouseup", function () {
+    if (dragging) { dragging = false; document.body.classList.remove("dock-resizing"); }
+  });
+  // Double-click the handle to reset to the default width.
+  handle.addEventListener("dblclick", function () {
+    localStorage.removeItem("eaf_dock_width");
+    document.documentElement.style.removeProperty("--dock-width");
+  });
 }
