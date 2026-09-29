@@ -24,7 +24,7 @@ from graphiti_core.llm_client.config import LLMConfig, ModelSize
 from graphiti_core.prompts.models import Message
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from agent.model import get_fast_model, get_model
+from agent.model import get_fast_model
 
 
 class BedrockLLMClient(LLMClient):
@@ -44,7 +44,30 @@ class BedrockLLMClient(LLMClient):
 
     def __init__(self, config: LLMConfig | None = None) -> None:
         super().__init__(config or LLMConfig(), cache=False)
-        self._main = get_model()
+        # NON-REASONING model for extraction. Graphiti's prompts are large and
+        # demand strict structured output; a reasoning model (gpt-oss) spends its
+        # token budget thinking and intermittently returns no valid tool call,
+        # which surfaced as "Expecting value: line 1 column 1" — an empty parse.
+        # Nova emits the JSON reliably.
+        #
+        # Configurable via GRAPHITI_LLM_MODEL because the callable id is
+        # region-dependent: bare `amazon.nova-pro-v1:0` works in eu-west-2, but in
+        # ap-northeast-1 the on-demand id is rejected and the `apac.` inference
+        # profile is required. Built directly (not via get_model_named) so a
+        # profile id outside the verified on-demand list is allowed here.
+        import os as _os
+
+        from langchain_aws import ChatBedrockConverse
+
+        from agent.model import bedrock_config
+
+        region = _os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
+        model_id = _os.getenv("GRAPHITI_LLM_MODEL", "amazon.nova-pro-v1:0")
+        # Bounded retry/timeout (shared config) so a throttled extraction call
+        # fails fast instead of backing off ~60s and stalling the memory path.
+        self._main = ChatBedrockConverse(
+            model=model_id, region_name=region, config=bedrock_config()
+        )
         self._fast = get_fast_model()
 
     async def _generate_response(
@@ -68,7 +91,12 @@ class BedrockLLMClient(LLMClient):
             # result is a pydantic instance (or dict); normalise to a plain dict.
             if hasattr(result, "model_dump"):
                 return result.model_dump()
-            return dict(result) if isinstance(result, dict) else json.loads(str(result))
+            if isinstance(result, dict):
+                return dict(result)
+            # No structured output produced. Raise a clean error so Graphiti's
+            # retry logic re-asks, rather than json.loads(str(None)) blowing up
+            # with an opaque "Expecting value" parse error.
+            raise ValueError("model returned no structured output for the requested schema")
 
         reply = await model.ainvoke(lc_messages)
         return {"content": reply.text if hasattr(reply, "text") else str(reply.content)}
@@ -90,8 +118,14 @@ class BedrockEmbedder(EmbedderClient):
 
         import boto3
 
+        from agent.model import bedrock_config
+
+        # Bounded retry/timeout so a throttled embedding call (part of recall)
+        # fails fast rather than backing off ~60s on the turn's critical path.
         self._bedrock = boto3.client(
-            "bedrock-runtime", region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
+            "bedrock-runtime",
+            region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-2"),
+            config=bedrock_config(),
         )
 
     def _embed_one(self, text: str) -> list[float]:

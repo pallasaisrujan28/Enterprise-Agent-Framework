@@ -36,11 +36,42 @@ from __future__ import annotations
 
 import os
 
+from botocore.config import Config
 from langchain_aws import ChatBedrockConverse
 
-# Primary model — used for all reasoning turns. Verified: 0.35s, emits a
-# reasoning block before the answer.
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "openai.gpt-oss-120b-1:0")
+# Bounded retry + timeout for every Bedrock call. WHY: the shared account gets
+# throttled (429), and botocore's default is up to ~10 adaptive retries with
+# exponential backoff — a single throttled call was measured taking 60+ seconds,
+# which landed on the critical path of the memory retrieval gate and made turns
+# take minutes. A small retry budget + a read timeout means a throttle FAILS FAST
+# (a few seconds) instead of backing off for a minute; the caller (e.g. the gate,
+# which fails open) recovers gracefully rather than hanging the turn.
+_BEDROCK_CONFIG = Config(
+    retries={"max_attempts": int(os.getenv("BEDROCK_MAX_ATTEMPTS", "2")), "mode": "standard"},
+    read_timeout=int(os.getenv("BEDROCK_READ_TIMEOUT", "30")),
+    connect_timeout=10,
+)
+
+# Primary model — used for all reasoning turns.
+#
+# History: gpt-oss-120b (a "harmony"-format reasoning model) leaked tool calls
+# into the TEXT channel, so the loop read `{"query":…}` as the answer and cut off.
+# nova-pro fixed the tool calling but is a modest model. deepseek.v3.2 is the
+# upgrade: a strong agentic model that reasons INTERNALLY (no separate reasoning
+# block to blow the token budget), returns clean text, and — verified with a live
+# Bedrock tool-call probe — emits proper structured tool calls (stopReason
+# tool_use), which is exactly what an agent driving many tools needs. Served from
+# account 744496272436 in ap-northeast-1 (set AWS_DEFAULT_REGION accordingly).
+#
+# Now kimi-k3. Head-to-head on real Gmail tasks (2026-09-28, 10 callable models
+# on account 436; Claude/GPT are AccessDenied there): kimi-k3 was the only one
+# that searched with sender/date filters, reported "not found" honestly AND
+# invented no contact details on the hard case; deepseek.v3.2 invented phone
+# numbers in both runs and was ~2.5x slower. Served via the `global.` cross-region
+# inference profile, so requests (including email text) may be processed outside
+# ap-northeast-1. mistral-large-3 is the fast/cheap alternative in the picker.
+# Override with BEDROCK_MODEL_ID to A/B.
+MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "global.moonshotai.kimi-k3")
 
 # Fast model — summarisation, context compaction, cheap classification. Verified,
 # and already carrying the dashboard's skill routing.
@@ -67,12 +98,30 @@ REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
 # answer here (~1.15s) and is the sole working exception — left off because it is
 # the priciest model in the region, not because it is broken. One line to add.
 VERIFIED_MODELS: tuple[dict[str, str | bool], ...] = (
-    {"id": "openai.gpt-oss-120b-1:0", "note": "default — strongest verified", "reasoning": True},
+    {
+        "id": "openai.gpt-oss-120b-1:0",
+        "note": "strong reasoning; leaks tool calls as text",
+        "reasoning": True,
+    },
     {"id": "openai.gpt-oss-20b-1:0", "note": "cheaper, same family", "reasoning": True},
-    {"id": "amazon.nova-pro-v1:0", "note": "no reasoning block", "reasoning": False},
+    {"id": "amazon.nova-pro-v1:0", "note": "reliable tool calling, modest", "reasoning": False},
     {"id": "amazon.nova-lite-v1:0", "note": "routing default — fast, cheap", "reasoning": False},
     {"id": "amazon.nova-micro-v1:0", "note": "cheapest, crispest", "reasoning": False},
-    {"id": "deepseek.v3.2", "note": "strong general reasoning", "reasoning": False},
+    {
+        "id": "global.moonshotai.kimi-k3",
+        "note": "default — best grounding + filtered search in eval",
+        "reasoning": False,
+    },
+    {
+        "id": "mistral.mistral-large-3-675b-instruct",
+        "note": "fast, cheap, good targeted search",
+        "reasoning": False,
+    },
+    {
+        "id": "deepseek.v3.2",
+        "note": "previous default — invented contact details in eval",
+        "reasoning": False,
+    },
     {"id": "zai.glm-5", "note": "GLM flagship", "reasoning": False},
     {"id": "zai.glm-4.7-flash", "note": "GLM, low latency", "reasoning": False},
     {"id": "qwen.qwen3-235b-a22b-2507-v1:0", "note": "large Qwen MoE", "reasoning": False},
@@ -103,14 +152,20 @@ def credential_source() -> str:
     return "the default AWS credential chain"
 
 
+def bedrock_config() -> Config:
+    """The shared bounded retry/timeout config, for callers that build their own
+    Bedrock client (e.g. the Graphiti memory clients)."""
+    return _BEDROCK_CONFIG
+
+
 def get_model() -> ChatBedrockConverse:
     """Return the primary reasoning model."""
-    return ChatBedrockConverse(model=MODEL_ID, region_name=REGION)
+    return ChatBedrockConverse(model=MODEL_ID, region_name=REGION, config=_BEDROCK_CONFIG)
 
 
 def get_fast_model() -> ChatBedrockConverse:
     """Return the fast model for cheap operations (compaction, classification)."""
-    return ChatBedrockConverse(model=FAST_MODEL_ID, region_name=REGION)
+    return ChatBedrockConverse(model=FAST_MODEL_ID, region_name=REGION, config=_BEDROCK_CONFIG)
 
 
 def get_model_named(model_id: str) -> ChatBedrockConverse:
@@ -124,4 +179,4 @@ def get_model_named(model_id: str) -> ChatBedrockConverse:
         raise ValueError(
             f"{model_id} is not a verified model. Verified: {sorted(VERIFIED_MODEL_IDS)}"
         )
-    return ChatBedrockConverse(model=model_id, region_name=REGION)
+    return ChatBedrockConverse(model=model_id, region_name=REGION, config=_BEDROCK_CONFIG)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import os
 import re
 
 import boto3
@@ -26,6 +27,7 @@ from deepagents.backends.protocol import (
     DeleteResult,
     EditResult,
     FileDownloadResponse,
+    FileInfo,
     FileUploadResponse,
     GlobResult,
     GrepMatch,
@@ -53,13 +55,39 @@ class EAFBackend(BackendProtocol):
 
     def __init__(self, bucket: str, region: str = "eu-west-2") -> None:
         self.bucket = bucket
-        self._s3 = boto3.client("s3", region_name=region)
+
+        # Credentials: in the cluster this is IRSA — no explicit keys, boto3's
+        # default chain resolves the pod role. Locally the store is MinIO, which
+        # does NOT know the ambient AWS/Bedrock credentials; sending them yields
+        # "InvalidAccessKeyId". So when dedicated workspace-store keys are provided
+        # (S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY, as docker-compose sets for
+        # MinIO), use THOSE for the S3 client. When they are absent, fall back to
+        # the default chain unchanged, so the cluster's IRSA path is untouched.
+        #
+        # The endpoint itself needs no handling here — boto3 reads
+        # AWS_ENDPOINT_URL_S3 natively, which is how the same client talks to
+        # MinIO locally and real S3 in the cluster.
+        access_key = os.getenv("S3_ACCESS_KEY_ID")
+        secret_key = os.getenv("S3_SECRET_ACCESS_KEY")
+        client_kwargs: dict[str, str] = {"region_name": region}
+        if access_key and secret_key:
+            client_kwargs["aws_access_key_id"] = access_key
+            client_kwargs["aws_secret_access_key"] = secret_key
+        self._s3 = boto3.client("s3", **client_kwargs)
 
     # ── Key helpers ───────────────────────────────────────────────────────────
 
     def _key(self, path: str) -> str:
-        """Strip /workspace/ prefix — return bare S3 key."""
+        """Strip the /workspace prefix — return the bare S3 key.
+
+        Handles the bare root ("/workspace" or "workspace") → "" as well as the
+        "/workspace/…" form. Missing the no-trailing-slash root case mapped it to
+        the literal prefix "workspace", so an ls/grep/glob at the workspace root
+        searched a prefix no key has and silently returned nothing.
+        """
         clean = path.lstrip("/")
+        if clean == "workspace":
+            return ""
         if clean.startswith("workspace/"):
             clean = clean[len("workspace/") :]
         return clean
@@ -76,12 +104,34 @@ class EAFBackend(BackendProtocol):
             raw = resp["Body"].read().decode("utf-8")
         except ClientError as exc:
             if exc.response["Error"]["Code"] in ("NoSuchKey", "404"):
-                raise FileNotFoundError(f"File not found: {file_path}") from exc
-            raise
+                # The protocol convention is to REPORT a missing file via the
+                # error field, not raise — the filesystem middleware turns this
+                # into a readable observation.
+                return ReadResult(error=f"File not found: {file_path}")
+            return ReadResult(error=str(exc))
+
+        # A non-positive limit is a "peek nothing" request: return with no window.
+        if limit <= 0:
+            return ReadResult(no_lines_requested=True)
 
         lines = raw.splitlines(keepends=True)
-        sliced = lines[offset : offset + limit]
-        return ReadResult(content="".join(sliced), truncated=len(lines) > offset + limit)
+        start = max(offset, 0)
+        window = lines[start : start + limit]
+
+        # Empty file, or an offset past the end: valid, but there is no line
+        # window to describe, so leave the pagination fields unset.
+        if not window:
+            return ReadResult(file_data={"content": "", "encoding": "utf-8"})
+
+        start_line = start + 1
+        end_line = start + len(window)
+        return ReadResult(
+            file_data={"content": "".join(window), "encoding": "utf-8"},
+            total_lines=len(lines),
+            start_line=start_line,
+            end_line=end_line,
+            next_offset=end_line,  # 0-indexed line after the last shown == end_line
+        )
 
     async def aread(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
         return await asyncio.to_thread(self.read, file_path, offset, limit)
@@ -109,20 +159,36 @@ class EAFBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,
     ) -> EditResult:
-        result = self.read(file_path)
-        content = result.content
-        if old_string not in content:
-            raise ValueError(
-                f"old_string not found in {file_path}. "
-                "Read the file first to verify the exact content."
+        # Fetch the whole object directly rather than via read(), whose default
+        # 2000-line window would silently drop the tail of a large file and
+        # corrupt it on write-back.
+        try:
+            raw = (
+                self._s3.get_object(Bucket=self.bucket, Key=self._key(file_path))["Body"]
+                .read()
+                .decode("utf-8")
             )
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] in ("NoSuchKey", "404"):
+                return EditResult(error=f"File not found: {file_path}")
+            return EditResult(error=str(exc))
+
+        if old_string not in raw:
+            return EditResult(
+                error=(
+                    f"old_string not found in {file_path}. "
+                    "Read the file first to verify the exact content."
+                )
+            )
+
+        occurrences = raw.count(old_string) if replace_all else 1
         new_content = (
-            content.replace(old_string, new_string)
+            raw.replace(old_string, new_string)
             if replace_all
-            else content.replace(old_string, new_string, 1)
+            else raw.replace(old_string, new_string, 1)
         )
         self.write(file_path, new_content)
-        return EditResult(path=file_path)
+        return EditResult(path=file_path, occurrences=occurrences)
 
     async def aedit(
         self, file_path: str, old_string: str, new_string: str, replace_all: bool = False
@@ -146,13 +212,19 @@ class EAFBackend(BackendProtocol):
             prefix += "/"
 
         resp = self._s3.list_objects_v2(Bucket=self.bucket, Prefix=prefix, Delimiter="/")
-        dirs = [cp["Prefix"][len(prefix) :].rstrip("/") for cp in resp.get("CommonPrefixes", [])]
-        files = [
-            obj["Key"][len(prefix) :]
-            for obj in resp.get("Contents", [])
-            if not obj["Key"].endswith("/") and obj["Key"] != prefix
+        # The protocol wants a flat list of FileInfo entries (absolute paths),
+        # directories flagged with is_dir — not the old path/dirs/files shape.
+        entries: list[FileInfo] = [
+            {"path": self._path(cp["Prefix"]), "is_dir": True}
+            for cp in resp.get("CommonPrefixes", [])
         ]
-        return LsResult(path=path, dirs=dirs, files=files)
+        for obj in resp.get("Contents", []):
+            if obj["Key"].endswith("/") or obj["Key"] == prefix:
+                continue
+            entries.append(
+                {"path": self._path(obj["Key"]), "is_dir": False, "size": obj.get("Size", 0)}
+            )
+        return LsResult(entries=entries)
 
     async def als(self, path: str) -> LsResult:
         return await asyncio.to_thread(self.ls, path)
@@ -187,9 +259,11 @@ class EAFBackend(BackendProtocol):
                     continue
                 for line_num, line in enumerate(raw.splitlines(), start=1):
                     if compiled.search(line):
-                        matches.append(GrepMatch(file=self._path(key), line=line_num, content=line))
+                        # GrepMatch is a TypedDict keyed path/line/text — not the
+                        # old file/line/content positional form.
+                        matches.append(GrepMatch(path=self._path(key), line=line_num, text=line))
                         if max_count and len(matches) >= max_count:
-                            return GrepResult(matches=matches)
+                            return GrepResult(matches=matches, truncated=True)
 
         return GrepResult(matches=matches)
 
@@ -208,16 +282,20 @@ class EAFBackend(BackendProtocol):
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
         search_prefix = self._key(path or "")
         paginator = self._s3.get_paginator("list_objects_v2")
-        matched: list[str] = []
+        matched: list[FileInfo] = []
 
         for page in paginator.paginate(Bucket=self.bucket, Prefix=search_prefix):
             for obj in page.get("Contents", []):
                 key = obj["Key"]
                 relative = key[len(search_prefix) :].lstrip("/") if search_prefix else key
                 if fnmatch.fnmatch(relative, pattern):
-                    matched.append(self._path(key))
+                    # GlobResult carries FileInfo entries (absolute paths), not a
+                    # bare list of path strings.
+                    matched.append(
+                        {"path": self._path(key), "is_dir": False, "size": obj.get("Size", 0)}
+                    )
 
-        return GlobResult(paths=matched)
+        return GlobResult(matches=matched)
 
     async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
         return await asyncio.to_thread(self.glob, pattern, path)

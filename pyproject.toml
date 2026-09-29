@@ -46,6 +46,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Google Calendar read support (agent/tools/calendar.py). Optional: the base
+# install never imports these, and the tool degrades to a setup hint without
+# them. Install with `pip install -e '.[gcal]'` to enable `agent connect google`.
+gcal = [
+    "google-auth>=2.0",
+    "google-auth-oauthlib>=1.0",
+    "google-api-python-client>=2.0",
+]
+# Durable local conversation history (agent/memory/checkpointer.py), used when
+# CHECKPOINT_DB is set. LangGraph's own SQLite saver.
+local = [
+    "langgraph-checkpoint-sqlite==3.1.1",
+]
 dev = [
     "pytest>=9.0.3",
     "pytest-cov>=6.0",

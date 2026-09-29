@@ -168,18 +168,60 @@ function stageStrip(m) {
 /* The step-by-step trail of what the agent DID — every tool call with its key
  * argument (search query, fetched URL). Behind a disclosure so it does not crowd
  * the answer, but there so a search result can be validated against its source. */
-function activityTrail(m) {
-  if (!m.activity || !m.activity.length) { return ""; }
-  var rows = m.activity.map(function (s) {
-    var d = s.detail || "";
-    var isUrl = /^https?:\/\//.test(d);
-    var val = isUrl
-      ? '<a href="' + esc(d) + '" target="_blank" rel="noopener">' + esc(d) + "</a>"
-      : esc(d);
-    return '<li><span class="act-tool">' + esc(s.tool) + "</span> " + val + "</li>";
+/* One tool call as a status row: a coloured dot (ok/warn/error/run) + the tool
+ * name + a one-line summary of its output, with the args and raw output folded
+ * behind a disclosure so a long or ugly result never floods the page. Mirrors
+ * waku's toolRow. */
+/* One tool call as a card, IDE-style: an icon + label header (with the status
+ * dot and a subtitle such as the file path), the exact INPUT the agent sent —
+ * the command, path, query, or code — in a code block, and the OUTPUT in a
+ * second block below it. Both blocks are height-capped and scroll, so a long
+ * result never floods the chat. The server builds label/subtitle/input
+ * (server.py _tool_view) so this stays a pure renderer. */
+var TOOL_ICONS = {
+  command: "\u276F_", file: "\u25A4", web: "\u25CD", mail: "\u2709",
+  calendar: "\u25A6", plan: "\u2630", agent: "\u25CE", code: "{}", tool: "\u2699"
+};
+
+function toolRow(x) {
+  var st = x.status || "ok";
+  var icon = TOOL_ICONS[x.icon] || TOOL_ICONS.tool;
+  var label = x.label || x.tool;
+  var sub = x.subtitle ? '<div class="tc-sub">' + esc(x.subtitle) + "</div>" : "";
+  var input = x.input ? '<pre class="tc-in">' + esc(x.input) + "</pre>" : "";
+  var output;
+  if (st === "run") {
+    output = '<div class="tc-run">running…</div>';
+  } else if (x.output) {
+    output = '<pre class="tc-out">' + esc(x.output) + "</pre>";
+  } else {
+    output = x.summary ? '<div class="tc-run">' + esc(x.summary) + "</div>" : "";
+  }
+  return '<div class="toolcard ' + st + '">' +
+    '<div class="tc-head"><span class="tc-icon" aria-hidden="true">' + icon + "</span>" +
+    '<span class="tc-label">' + esc(label) + "</span>" +
+    '<span class="dot ' + st + '" role="img" aria-label="' + esc(st) + '"></span>' +
+    '<code class="tc-name">' + esc(x.tool) + "</code></div>" +
+    sub + input + output + "</div>";
+}
+
+function toolTrail(m) {
+  if (!m.tools || !m.tools.length) { return ""; }
+  var n = m.tools.length;
+  return '<details class="toolgroup" open><summary>' + n + " tool call" + (n === 1 ? "" : "s") +
+    '</summary><div class="toolrows">' + m.tools.map(toolRow).join("") + "</div></details>";
+}
+
+/* Live trail of what DELEGATED subagents are doing — the browser clicks and
+ * searches that would otherwise be an opaque gap while the parent waits. Shown
+ * open during a turn so you can watch it work. */
+function subagentTrail(m) {
+  if (!m.subagents || !m.subagents.length) { return ""; }
+  var rows = m.subagents.map(function (s) {
+    return '<li><span class="act-tool">' + esc(s.agent) + "</span> → " + esc(s.tool) + "</li>";
   }).join("");
-  return '<details class="activity"><summary>' + m.activity.length +
-    " step(s) — searches & fetches</summary><ul class=\"act-list\">" + rows + "</ul></details>";
+  return '<details class="activity" open><summary>' + m.subagents.length +
+    " subagent step(s)</summary><ul class=\"act-list\">" + rows + "</ul></details>";
 }
 
 /* A turn still running. Shows the stage strip so the gate's pending state is
@@ -197,7 +239,7 @@ function streamingCard(m) {
           "first token can take a while."
         : "") + "</div>";
   }
-  return uiCard(stageStrip(m) + body, { cls: "assistant" });
+  return uiCard(stageStrip(m) + subagentTrail(m) + toolTrail(m) + body, { cls: "assistant" });
 }
 
 function turnCard(m) {
@@ -220,7 +262,8 @@ function turnCard(m) {
 
   return uiCard(
     stageStrip(m) +
-    activityTrail(m) +
+    subagentTrail(m) +
+    toolTrail(m) +
     '<div class="reply">' + mdToHtml(m.reply) + "</div>" +
     withheld +
     teleFooter(m),
@@ -272,7 +315,40 @@ function applyEvent(pending, ev) {
     return;
   }
   if (ev.kind === "activity") {
-    pending.activity = ev.steps || [];
+    /* Enriched, per-call rows (tool, detail, output, status, summary) — replaces
+     * the live rows built below with the full detail once the turn settles. */
+    pending.tools = ev.steps || pending.tools || [];
+    return;
+  }
+  if (ev.kind === "tool") {
+    /* A tool call STARTED — show its card immediately as running. */
+    pending.tools = pending.tools || [];
+    pending.tools.push({ id: ev.id, tool: ev.tool, label: ev.label, icon: ev.icon,
+                         status: "run", summary: "" });
+    return;
+  }
+  if (ev.kind === "tool_result") {
+    /* Its result arrived — fill the card (exact input + output). Matched by call
+     * id; falls back to the last running card of the same tool. */
+    pending.tools = pending.tools || [];
+    var card = null;
+    for (var i = pending.tools.length - 1; i >= 0; i--) {
+      var t = pending.tools[i];
+      if ((ev.id && t.id === ev.id) || (!card && t.tool === ev.tool && t.status === "run")) {
+        card = t;
+        if (ev.id && t.id === ev.id) { break; }
+      }
+    }
+    if (!card) { card = {}; pending.tools.push(card); }
+    ["id", "tool", "status", "summary", "output", "icon", "label", "subtitle", "input"]
+      .forEach(function (k) { if (ev[k] !== undefined) { card[k] = ev[k]; } });
+    return;
+  }
+  if (ev.kind === "subagent") {
+    /* A tool call from INSIDE a delegated subagent. Shown live so delegation is
+     * not an opaque gap; the subagent's own text is never streamed as the answer. */
+    pending.subagents = pending.subagents || [];
+    pending.subagents.push({ agent: ev.agent, tool: ev.tool });
     return;
   }
   if (ev.kind === "gate") {
@@ -297,7 +373,7 @@ function applyEvent(pending, ev) {
     pending.usage = ev.usage;
     pending.model = ev.model;
     pending.policies = ev.policies || [];
-    pending.activity = ev.activity || pending.activity || [];
+    pending.tools = ev.activity || pending.tools || [];
   }
 }
 

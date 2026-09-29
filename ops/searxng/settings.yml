@@ -42,17 +42,38 @@ server:
 ui:
   static_use_hash: true
 
-# Keep the engine set small and free. Each engine is a network call per query, so
-# ten engines is ten times the latency for marginal extra coverage.
+# Engine set chosen for RELIABILITY on a self-hosted instance, not breadth.
+#
+# The trap we hit: google and duckduckgo CAPTCHA-block a datacenter/local
+# SearXNG almost immediately ("Suspended: CAPTCHA" in the engine errors), so a
+# query that leaned on them — especially `site:` filters, which those two serve
+# best — came back with ZERO results and read to the agent as "search is down".
+#
+# So google is DROPPED (it effectively never answers from here) and the set is
+# widened to engines that answer without a CAPTCHA wall from a server IP:
+#   bing        — reliable, the workhorse
+#   brave       — strong independent-ish general index, rarely blocks
+#   mojeek      — its OWN crawler/index, no CAPTCHA, great fallback
+#   duckduckgo  — kept as a bonus; when it works it handles site: well, and it
+#                 no longer being the ONLY site:-capable engine means its
+#                 CAPTCHA no longer zeroes a query
+#   wikipedia   — reference/definitional queries
+#
+# More engines = more latency per query, but SearXNG returns as each responds and
+# a broader set is what stops the intermittent empty results.
 engines:
-  - name: google
-    disabled: false
   - name: bing
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: mojeek
     disabled: false
   - name: duckduckgo
     disabled: false
   - name: wikipedia
     disabled: false
+  - name: google
+    disabled: true
 
 outgoing:
   request_timeout: 10.0

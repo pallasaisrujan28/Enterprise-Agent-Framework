@@ -39,7 +39,6 @@ from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
 from deepagents.middleware import SummarizationMiddleware
 from langchain.agents.middleware import ToolErrorMiddleware
-from langchain.agents.middleware.todo import TodoListMiddleware  # type: ignore[import-not-found]
 from langchain.agents.middleware.types import AgentMiddleware
 
 from agent.backends import EAFBackend
@@ -50,10 +49,23 @@ from agent.delegation import (
 )
 from agent.memory import semantic
 from agent.memory.checkpointer import get_checkpointer
+from agent.memory.tools import manage_memory, save_note
+from agent.middleware.context import (
+    SUMMARY_KEEP,
+    SUMMARY_TRIGGER,
+    context_editing,
+    planning_middleware,
+)
+from agent.middleware.debug import PromptDebugMiddleware
 from agent.middleware.memory import MemoryMiddleware
 from agent.middleware.obligations import ObligationGateMiddleware
 from agent.model import get_fast_model, get_model, get_model_named
+from agent.skills_engine.author import create_skill
+from agent.soul import load_soul, update_soul
+from agent.tools.browser_mcp import browser_enabled
+from agent.tools.calendar import list_calendar_events
 from agent.tools.fetch import fetch_url
+from agent.tools.gmail import list_recent_emails, read_email
 from agent.tools.searxng_mcp import build_search_tools
 
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
@@ -99,7 +111,14 @@ def _build_backend() -> CompositeBackend:
         default=StateBackend(),
         routes={
             "/workspace": workspace_backend,
-            "/skills": FilesystemBackend(),
+            # Rooted AT the skills dir so the virtual mount `/skills` maps to it:
+            # CompositeBackend strips the route prefix and hands the remainder to
+            # this backend, which resolves it under root_dir. The TRAILING SLASH on
+            # the key is load-bearing: CompositeBackend remaps returned paths with
+            # `route_prefix[:-1]`, so a key of "/skills" (no slash) drops the "s"
+            # and emits "/skill/…" paths that no longer route back — the skill was
+            # found, then lost on the follow-up download. "/skills/" remaps cleanly.
+            "/skills/": FilesystemBackend(root_dir=SKILLS_DIR),
         },
     )
 
@@ -121,9 +140,51 @@ def _system_prompt() -> str:
         "cutoff and may be out of date. For anything time-sensitive — recent "
         "events, latest versions, current prices, who currently holds a role — do "
         "NOT answer from memory. Use the web search tool and base the answer on "
-        "what you find, citing the sources."
+        "what you find, citing the sources. When searching, prefer plain keyword "
+        "queries and use `site:` filters sparingly — not every search engine "
+        "supports them, so an over-constrained query can come back empty. If a "
+        "search returns no results, rephrase with simpler terms or open the site "
+        "directly rather than treating it as an outage."
     )
-    return f"{freshness}\n\n{DELEGATION_GUIDANCE}"
+    # SOUL is the editable persona (agent/soul.py) — the TOP layer, waku-style.
+    # It carries character + standing/learned rules and is editable by the agent
+    # via update_soul. Loaded fresh each build so a rule the agent saved last turn
+    # is in force this turn. The code-built freshness + delegation guidance layer
+    # underneath it.
+    # GROUNDING. Measured failure: the model presented 18 "exact" emails built
+    # from 140-char previews, and re-ran identical searches whose results were
+    # already in context. waku's rules (runtime/session.py DEFAULT_SOUL) cover the
+    # second; the first is ours.
+    grounding = (
+        "Grounding: state only what a tool actually returned. Never present a "
+        "preview, snippet, or summary as a quote or as 'exact content' — open the "
+        "full item first (e.g. read_email) or say you only have a preview. Give "
+        "counts only as the tool reported them, and say when results were capped. "
+        "Do not re-run a tool call whose result is already in this conversation; "
+        "answer from that result."
+    )
+    prompt = f"{load_soul()}\n\n{freshness}\n\n{grounding}\n\n{DELEGATION_GUIDANCE}"
+
+    # When the browsing/action capability is on, tell the top-level agent to route
+    # "do something on a website" tasks to the `browsing` subagent (which owns the
+    # browser tools and the confirm-before-commit contract), and to honour that
+    # same rule itself: a purchase, booking, or submission is never made without
+    # the user's explicit confirmation in chat.
+    if browser_enabled():
+        prompt += (
+            "\n\nYou can act on websites — shopping, booking (flights, tickets, "
+            "events), and filling forms like visa applications — by delegating to "
+            "the `browsing` subagent, which drives a real browser. Route any task "
+            "whose goal is to DO something on a site (not just read it) to it. "
+            "CONFIRM BEFORE COMMIT: never let a payment, order, booking, or form "
+            "submission happen without first showing the user exactly what will "
+            "occur (items, total, recipient, key values) and getting their "
+            "explicit confirmation in the chat. If a login, card, or one-time code "
+            "is needed and was not provided, ask the user for it rather than "
+            "guessing."
+        )
+
+    return prompt
 
 
 def build_agent(model_id: str | None = None):
@@ -143,7 +204,13 @@ def build_agent(model_id: str | None = None):
     # then reject every member that is not the joined one. The annotation says what
     # create_deep_agent actually accepts.
     middleware: list[AgentMiddleware[Any, Any, Any]] = [
-        TodoListMiddleware(),
+        # Planning, with a short prompt that keeps write_todos for genuinely
+        # multi-step work (measured: 4 of 7 calls in an email lookup were todo
+        # bookkeeping). See agent/middleware/context.py.
+        planning_middleware(),
+        # Once the prompt grows past a threshold, older tool OUTPUTS are replaced
+        # by a placeholder (latest few kept) — langchain's ContextEditing.
+        context_editing(),
         # A failing tool comes back as an error MESSAGE the model can read and
         # work around, not an exception that ends the turn. This was not
         # academic: web_search succeeded, the model also called fetch_and_store,
@@ -167,7 +234,16 @@ def build_agent(model_id: str | None = None):
         # Summarising runs on the FAST model deliberately. It is cheap mechanical
         # work and it fires on long sessions — the worst place to pay flagship
         # rates.
-        SummarizationMiddleware(model=get_fast_model(), backend=backend),
+        #
+        # An explicit trigger is REQUIRED: constructed without one, this
+        # middleware never summarises proactively (trigger=None → no clauses),
+        # only on a context-overflow error. That was the state until now.
+        SummarizationMiddleware(
+            model=get_fast_model(),
+            backend=backend,
+            trigger=SUMMARY_TRIGGER,
+            keep=SUMMARY_KEEP,
+        ),
         # The obligation gate. Inside the middleware stack rather than wrapped
         # around the agent, so EVERY entry point gets it: the HTTP service and the
         # dashboard both call build_agent(), and neither can skip it. Two doors
@@ -192,9 +268,34 @@ def build_agent(model_id: str | None = None):
     if semantic.memory_enabled():
         middleware.append(MemoryMiddleware(router=get_fast_model()))
 
+    # Debug view of the assembled prompt + tools, only when AGENT_DEBUG_PROMPT is
+    # set. Appended last so it sees the prompt after our own layers (memory).
+    middleware.append(PromptDebugMiddleware())
+
     return create_deep_agent(
         model=get_model_named(model_id) if model_id else get_model(),
-        tools=[*search_tools, fetch_url],
+        # The agency tools that let the agent LEARN by editing its own context:
+        #   update_soul   — persist a standing behaviour rule (persona)
+        #   save_note     — save a durable fact on request (explicit memory)
+        #   manage_memory — search / correct / forget facts (fixes wrong memory)
+        #   create_skill  — author a reusable SKILL.md (procedural memory)
+        # All on the main agent only, and deliberately NOT in the interpreter's
+        # PTC allowlist, because they mutate durable state (persona file, Graphiti,
+        # skill files) — that allowlist is read-only by design. The memory tools
+        # self-gate: they return a clear message when AGENT_MEMORY is off.
+        tools=[
+            *search_tools,
+            fetch_url,
+            update_soul,
+            save_note,
+            manage_memory,
+            create_skill,
+            # Read-only Google Calendar + Gmail (shared sign-in). Self-gating:
+            # both return a setup hint when not connected, so always safe to expose.
+            list_calendar_events,
+            list_recent_emails,
+            read_email,
+        ],
         # Freshness anchor (today's date + "verify time-sensitive facts") plus the
         # delegation guidance that replaces the interpreter's "say 'workflow'"
         # heuristic with a judgement on the shape of the task.
@@ -205,10 +306,11 @@ def build_agent(model_id: str | None = None):
         # The subagent roster the interpreter's `task()` dispatches. Defined in
         # agent/delegation, not here — this builder only assembles the harness.
         subagents=build_subagents(),
-        # `skills`, a list of SOURCES — not `skills_dir`, which this called and
-        # which create_deep_agent has never accepted in the pinned version. The
-        # whole harness raised TypeError on every build, so no turn had ever run.
-        # deepagents turns this into a SkillsMiddleware internally, which is the
-        # progressive-disclosure loader we should be using rather than our own.
-        skills=[SKILLS_DIR],
+        # The VIRTUAL mount, not the absolute path. Skill sources are resolved
+        # THROUGH the backend, and our CompositeBackend routes by the `/skills`
+        # prefix to a FilesystemBackend rooted at the real skills dir. Passing the
+        # absolute repo path here matched no route and fell through to the empty
+        # in-memory StateBackend, so the catalogue always read "No skills
+        # available" — the loader was fine; the source path was unroutable.
+        skills=["/skills"],
     )

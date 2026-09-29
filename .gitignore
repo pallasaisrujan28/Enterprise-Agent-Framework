@@ -35,3 +35,14 @@ test-reports/
 # MCP server config holds API tokens in its env block. Steering and specs under
 # .kiro ARE committed; this one file must not be.
 .kiro/settings/mcp.json
+
+# OAuth credentials and cached tokens (Google Calendar, etc.). These live under
+# $EAF_HOME (default ~/.eaf, outside the repo) — but guard against an in-repo
+# EAF_HOME accidentally committing a client secret or a refresh token.
+.eaf/
+credentials.json
+*token*.json
+google-token.json
+
+# Playwright MCP session artefacts (console logs, snapshots, screenshots).
+.playwright-mcp/
