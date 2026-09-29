@@ -525,3 +525,125 @@ body.dock-closed #dockhint { display: none; }
     border-left: 1px solid var(--rule-hard);
   }
 }
+
+/* ── memory view ─────────────────────────────────────────────────────────── */
+.memlist { list-style: none; margin: 0; padding: 0; }
+.memlist li {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+}
+.memlist li:last-child { border-bottom: none; }
+.memfact { font-weight: 500; margin-right: var(--space-2); }
+.memlist .tele.meta { display: inline-block; margin-left: var(--space-2); }
+
+/* ── tool call cards (IDE-style: header, exact input, output) ────────────── */
+.toolgroup { margin: var(--space-2) 0; }
+.toolgroup > summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: var(--space-1) 0;
+}
+.toolcard {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  background: var(--surface-page);
+  font-size: var(--text-xs);
+}
+.tc-head { display: flex; align-items: center; gap: var(--space-2); }
+.tc-icon {
+  font-family: var(--face-mono);
+  color: var(--text-muted);
+  min-width: 1.5em;
+  text-align: center;
+}
+.tc-label { font-weight: 600; color: var(--text-strong); }
+.tc-head .dot { margin: 0; }
+.tc-name { margin-left: auto; font-family: var(--face-mono); color: var(--text-muted); }
+.tc-sub {
+  margin-top: var(--space-1);
+  font-family: var(--face-mono);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.tc-in, .tc-out {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font-family: var(--face-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+}
+.tc-in { color: var(--text-body); max-height: 14em; }
+.tc-out { color: var(--text-muted); max-height: 18em; }
+.toolcard.error .tc-out { border-color: var(--bad); }
+.tc-run { margin-top: var(--space-1); color: var(--text-muted); }
+
+/* ── tool activity rows (waku-style status rows) ─────────────────────────── */
+.toolrows { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; }
+.toolrow {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.toolrow > code {
+  font-family: var(--face-mono);
+  color: var(--text-body);
+}
+.toolrow .dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: var(--space-2);
+  background: var(--text-muted);
+  vertical-align: middle;
+}
+.toolrow.ok .dot { background: var(--ok); }
+.toolrow.warn .dot { background: var(--warn); }
+.toolrow.error .dot { background: var(--bad); }
+.toolcard .dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.toolcard.ok .dot { background: var(--ok); }
+.toolcard.warn .dot { background: var(--warn); }
+.toolcard.error .dot { background: var(--bad); }
+.toolcard.run .dot { animation: toolpulse 1s ease-in-out infinite; }
+.toolrow.run .dot { background: var(--text-muted); animation: toolpulse 1s ease-in-out infinite; }
+@keyframes toolpulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+.act-sum { color: var(--text-muted); margin-left: var(--space-2); }
+.toolrow details { margin: var(--space-1) 0 0 calc(7px + var(--space-2)); }
+.toolrow details summary { cursor: pointer; color: var(--text-muted); }
+.toolrow details pre {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+}
+
+/* ── connect button (Connections view) ──────────────────────────────────── */
+.btn {
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule-hard);
+  border-radius: var(--radius);
+  background: var(--surface-page);
+  color: var(--text-strong);
+  cursor: pointer;
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+}
+.btn:hover { border-color: var(--text-strong); }
+.btn:disabled { color: var(--text-muted); cursor: default; }

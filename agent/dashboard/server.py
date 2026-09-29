@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -82,17 +83,208 @@ _ACTIVITY_ARG: dict[str, str] = {
     "read_file": "file_path",
     "eval": "code",
     "task": "description",
+    "list_recent_emails": "query",
+    "read_email": "message_id",
+    "list_calendar_events": "start",
 }
 
 
-def _tool_activity(messages: list[Any]) -> list[dict[str, str]]:
-    """Every tool call in a turn as [{tool, detail}], in order.
+def _text_of(content: Any) -> str:
+    """Flatten a message's content (str, or a list of content blocks) to text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                parts.append(str(block.get("text") or block.get("content") or ""))
+            else:
+                parts.append(str(block))
+        return "".join(parts)
+    return str(content or "")
 
-    Reads from the finished messages, where each AIMessage carries complete
-    `tool_calls` with resolved args — unlike the token stream, which delivers
-    those args in fragments. `detail` is the single most informative argument
-    (a query, a URL), truncated, so the trail stays scannable.
+
+# DeepSeek on Bedrock sometimes echoes its tool-call markup into the text
+# content ("<｜DSML｜function_calls…") even though the call itself is parsed
+# correctly. It is transport noise, never part of the answer.
+_DSML = re.compile(r"<[｜|]DSML[｜|][^\n]*", re.IGNORECASE)
+
+
+_NARRATION_CHARS = 300
+
+
+def _this_turn(messages: list[Any]) -> list[Any]:
+    """Messages produced by the CURRENT turn: everything after the last human
+    message. The checkpointer returns the whole thread, so without this slice
+    the reply and activity would include earlier turns."""
+    for i in range(len(messages) - 1, -1, -1):
+        if getattr(messages[i], "type", "") == "human":
+            return messages[i + 1 :]
+    return messages
+
+
+def _turn_reply(messages: list[Any]) -> str:
+    """The full answer for this turn: the text of EVERY assistant message in it,
+    in order. Agents often write the substantive answer in one message, then make
+    a bookkeeping tool call (write_todos), then close with a short summary — so
+    taking only the last message drops the content the user actually asked for."""
+    parts: list[str] = []
+    for m in _this_turn(messages):
+        if getattr(m, "type", "") != "ai":
+            continue
+        text = _DSML.sub("", _text_of(getattr(m, "content", ""))).strip()
+        # "Let me search…" before a tool call is progress narration — the live
+        # tool rows already show it. Substantive text written alongside a tool
+        # call (e.g. the answer, then a write_todos update) is kept.
+        if getattr(m, "tool_calls", None) and len(text) < _NARRATION_CHARS:
+            continue
+        if text:
+            parts.append(text)
+    return "\n\n".join(parts)
+
+
+# How a tool call is SHOWN: a kind label, an optional subtitle (the path or
+# target), and the input as the command-like text a person would type. Unknown
+# tools fall back to their name + pretty-printed args, so nothing is hidden.
+_MAX_VIEW_CHARS = 6000
+
+
+def _clip(text: str, limit: int = _MAX_VIEW_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"\n… [{len(text) - limit} more chars not shown]"
+
+
+def _tool_view(name: str, args: Any) -> dict[str, str]:
+    """{icon, label, subtitle, input} for one call. `icon` (not `kind`) because
+    the view is spread into SSE frames, whose `kind` is the frame type."""
+    view = _tool_view_raw(name, args)
+    view["icon"] = view.pop("kind")
+    return view
+
+
+def _tool_view_raw(name: str, args: Any) -> dict[str, str]:
+    a = args if isinstance(args, dict) else {}
+
+    def g(key: str, default: str = "") -> str:
+        v = a.get(key)
+        return default if v is None else str(v)
+
+    if name == "ls":
+        return {"kind": "command", "label": "List", "subtitle": "", "input": f"ls {g('path', '/')}"}
+    if name == "read_file":
+        rng = ""
+        if a.get("offset") is not None or a.get("limit") is not None:
+            rng = f"  (offset {g('offset', '0')}, limit {g('limit', '-')})"
+        return {"kind": "file", "label": "Read file", "subtitle": "", "input": g("file_path") + rng}
+    if name == "write_file":
+        return {
+            "kind": "file",
+            "label": "Write file",
+            "subtitle": g("file_path"),
+            "input": g("content"),
+        }
+    if name == "edit_file":
+        diff = f"- {g('old_string')}\n+ {g('new_string')}"
+        return {"kind": "file", "label": "Edit file", "subtitle": g("file_path"), "input": diff}
+    if name == "delete":
+        return {
+            "kind": "command",
+            "label": "Delete",
+            "subtitle": "",
+            "input": f"rm {g('path') or g('file_path')}",
+        }
+    if name == "glob":
+        return {
+            "kind": "command",
+            "label": "Find files",
+            "subtitle": g("path"),
+            "input": f"glob {g('pattern')}",
+        }
+    if name == "grep":
+        where = g("path") or g("glob")
+        return {
+            "kind": "command",
+            "label": "Search files",
+            "subtitle": where,
+            "input": f"grep {g('pattern')!r}",
+        }
+    if name == "execute":
+        return {"kind": "command", "label": "Command", "subtitle": "", "input": g("command")}
+    if name == "eval":
+        return {"kind": "code", "label": "Code", "subtitle": "interpreter", "input": g("code")}
+    if name == "task":
+        return {
+            "kind": "agent",
+            "label": "Subagent",
+            "subtitle": g("subagent_type"),
+            "input": g("description"),
+        }
+    if name in ("searxng_web_search", "searxngWebSearch", "web_search"):
+        return {"kind": "web", "label": "Web search", "subtitle": "", "input": g("query")}
+    if name in ("fetch_url", "fetch_and_store"):
+        return {"kind": "web", "label": "Fetch", "subtitle": "", "input": g("url")}
+    if name == "list_recent_emails":
+        return {
+            "kind": "mail",
+            "label": "Email search",
+            "subtitle": f"limit {g('limit', '10')}",
+            "input": g("query") or "in:inbox",
+        }
+    if name == "read_email":
+        return {"kind": "mail", "label": "Read email", "subtitle": "", "input": g("message_id")}
+    if name == "list_calendar_events":
+        span = " → ".join(x for x in (g("start"), g("end")) if x) or "upcoming"
+        return {"kind": "calendar", "label": "Calendar", "subtitle": "", "input": span}
+    if name == "write_todos":
+        marks = {"completed": "[x]", "in_progress": "[~]"}
+        todos = a.get("todos") or []
+        lines = [
+            f"{marks.get(str(t.get('status')), '[ ]')} {t.get('content', '')}"
+            for t in todos
+            if isinstance(t, dict)
+        ]
+        return {"kind": "plan", "label": "Plan", "subtitle": "", "input": "\n".join(lines)}
+    pretty = json.dumps(a, indent=2, ensure_ascii=False, default=str) if a else ""
+    return {"kind": "tool", "label": name, "subtitle": "", "input": pretty}
+
+
+def _tool_status(output: str) -> str:
+    """Classify a tool result for the UI from its output text alone: ok/warn/error.
+
+    Tools in this harness report honestly (ToolErrorMiddleware turns a failure
+    into a readable "this tool is unavailable…" message), so the words are enough.
     """
+    low = (output or "").lower()
+    if low.startswith("error") or "failed" in low or "timed out" in low or "unavailable" in low:
+        return "error"
+    if "no results" in low or "not found" in low:
+        return "warn"
+    return "ok"
+
+
+def _tool_summary(output: str) -> str:
+    """A one-line gist of a tool's output — its first sentence, truncated."""
+    text = (output or "").strip().replace("\n", " ")
+    first = text.split(". ", 1)[0]
+    return first[:120] + ("…" if len(first) > 120 else "")
+
+
+def _tool_activity(messages: list[Any]) -> list[dict[str, str]]:
+    """Every tool call in a turn as [{tool, detail, output, status, summary}].
+
+    Reads from the finished messages, pairing each AIMessage `tool_call` with the
+    `ToolMessage` that carried its result (matched by tool_call_id) — the same
+    enrichment waku's dashboard does, so a call renders as a status row (ok/warn/
+    error) with a one-line summary and an expandable raw output. `detail` is the
+    single most informative argument (a query, a URL), truncated.
+    """
+    # tool_call_id -> output text, from the ToolMessages in this turn.
+    results: dict[str, str] = {}
+    for m in messages:
+        if getattr(m, "type", "") == "tool":
+            results[str(getattr(m, "tool_call_id", ""))] = _text_of(getattr(m, "content", ""))
+
     steps: list[dict[str, str]] = []
     for m in messages:
         for call in getattr(m, "tool_calls", None) or []:
@@ -108,7 +300,20 @@ def _tool_activity(messages: list[Any]) -> list[dict[str, str]]:
                 detail = str(next(iter(args.values())))
             if len(detail) > 200:
                 detail = detail[:200] + "…"
-            steps.append({"tool": name, "detail": detail})
+            output = results.get(str(call.get("id", "")), "")
+            view = _tool_view(name, args)
+            steps.append(
+                {
+                    "id": str(call.get("id", "")),
+                    "tool": name,
+                    "detail": detail,
+                    "output": _clip(output),
+                    "status": _tool_status(output),
+                    "summary": _tool_summary(output),
+                    **view,
+                    "input": _clip(view["input"]),
+                }
+            )
     return steps
 
 
@@ -162,6 +367,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(_describe_config())
             return
 
+        if route == "/api/memory":
+            self._send_json(_describe_memory())
+            return
+
         # The Dockerfile's HEALTHCHECK has curled /health since it was written
         # and nothing served it, so the container was always one failed probe
         # away from being restarted forever. Deliberately does NOT call Bedrock:
@@ -191,8 +400,38 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/session":
             self._session_action(body)
             return
+        if route == "/api/connect/google":
+            self._connect_google()
+            return
 
         self._send_json({"error": f"no such endpoint: {route}"}, status=404)
+
+    def _connect_google(self) -> None:
+        """Run the one-time Google Calendar OAuth flow from the dashboard.
+
+        LOOPBACK ONLY. connect() opens a browser and a localhost redirect server,
+        which only makes sense when the dashboard runs on the user's own machine.
+        Refusing it on a non-loopback bind stops a remote/cluster caller from
+        trying to pop a browser on a headless server — that path needs the web
+        OAuth connector (see docs/references/cluster-oauth.md), not this.
+        """
+        client_ip = self.client_address[0] if self.client_address else ""
+        if client_ip not in ("127.0.0.1", "::1", "localhost"):
+            self._send_json(
+                {
+                    "error": "connect is available only on the local dashboard; a "
+                    "deployed instance needs the web OAuth connector",
+                },
+                status=403,
+            )
+            return
+        try:
+            from agent.tools import google_auth
+
+            message = google_auth.connect()
+        except Exception as exc:  # noqa: BLE001 — report, never 500 the endpoint
+            message = f"connect failed: {type(exc).__name__}: {exc}"
+        self._send_json({"message": message, "connected": _google_connected()})
 
     def _read_json(self) -> dict[str, Any] | None:
         """Read a JSON body, or answer the error and return None.
@@ -362,18 +601,116 @@ class Handler(BaseHTTPRequestHandler):
         # in the graph, and the obligation gate's routing call is one of them — so
         # without this filter the router's "NONE" or a skill name leaked into the
         # answer, appended right after the reply. langgraph_node names the source.
-        for chunk, meta in agent.stream(
+        # subgraphs=True makes the stream ALSO yield chunks from inside subagents
+        # (the `task`/browsing/research delegates), which otherwise run as an
+        # opaque gap. Each item becomes (namespace, (chunk, meta)); a NON-EMPTY
+        # namespace means the chunk came from a subagent's own graph. We surface a
+        # subagent's TOOL activity live so delegation is visible, but never stream
+        # its text as the answer — a subagent's prose is its private reasoning;
+        # only its final result returns to the parent, which the parent then
+        # synthesises as top-level "model" text (handled below, unchanged).
+        seen_subagent: set[tuple[str, str]] = set()
+        # Tool-call ARGS stream in fragments (tool_call_chunks). Accumulate them
+        # per call id so a finished call's card can show its exact input the
+        # moment its result arrives, not only at the end of the turn.
+        call_name: dict[str, str] = {}
+        call_args: dict[str, str] = {}
+        index_to_id: dict[int, str] = {}
+        for ns, payload in agent.stream(
             {"messages": [{"role": "user", "content": message}]},
             config=run_config,
             stream_mode="messages",
+            subgraphs=True,
         ):
+            chunk, meta = payload
+
+            if ns:  # inside a subagent
+                label = str(ns[-1]).split(":")[0] if ns else "subagent"
+                for call in getattr(chunk, "tool_calls", None) or []:
+                    name = call.get("name")
+                    key = (label, str(name))
+                    if name and key not in seen_subagent:
+                        seen_subagent.add(key)
+                        self._send_frame({"kind": "subagent", "agent": label, "tool": name})
+                continue
+
+            # Tool RESULTS arrive from the "tools" node as ToolMessages — surface
+            # them live as status rows (ok/warn/error + one-line summary) BEFORE
+            # the model-only filter below drops them. This is the waku-style rich
+            # tool display; the final `activity` frame carries the full detail.
+            if getattr(chunk, "type", "") == "tool":
+                out = _text_of(getattr(chunk, "content", ""))
+                cid = str(getattr(chunk, "tool_call_id", "") or "")
+                name = getattr(chunk, "name", None) or call_name.get(cid, "?")
+                try:
+                    args = json.loads(call_args.get(cid) or "{}")
+                except ValueError:
+                    args = {}
+                view = _tool_view(name, args)
+                self._send_frame(
+                    {
+                        "kind": "tool_result",
+                        "id": cid,
+                        "tool": name,
+                        "status": _tool_status(out),
+                        "summary": _tool_summary(out),
+                        "output": _clip(out),
+                        **view,
+                        "input": _clip(view["input"]),
+                    }
+                )
+                continue
+
             if meta.get("langgraph_node") != "model":
                 continue
+            # One `tool` frame per CALL (not per tool name — the old dedup hid
+            # the second list_recent_emails). The first chunk of a call carries
+            # its id and name; later chunks carry only the index + arg text.
+            for part in getattr(chunk, "tool_call_chunks", None) or []:
+                idx = part.get("index")
+                cid = part.get("id")
+                if cid:
+                    if isinstance(idx, int):
+                        index_to_id[idx] = cid
+                    if cid not in call_name:
+                        name = part.get("name") or "?"
+                        call_name[cid] = name
+                        call_args[cid] = ""
+                        if name not in tools_called:
+                            tools_called.append(name)
+                        view = _tool_view(name, {})
+                        self._send_frame(
+                            {
+                                "kind": "tool",
+                                "id": cid,
+                                "tool": name,
+                                "label": view["label"],
+                                "icon": view["icon"],
+                            }
+                        )
+                elif isinstance(idx, int):
+                    cid = index_to_id.get(idx, "")
+                if cid and part.get("args"):
+                    call_args[cid] = call_args.get(cid, "") + str(part["args"])
+            # Some providers deliver a whole, parsed call instead of chunks.
             for call in getattr(chunk, "tool_calls", None) or []:
-                name = call.get("name")
-                if name and name not in tools_called:
-                    tools_called.append(name)
-                    self._send_frame({"kind": "tool", "tool": name})
+                cid = str(call.get("id") or "")
+                name = call.get("name") or ""
+                if cid and name and cid not in call_name:
+                    call_name[cid] = name
+                    call_args[cid] = json.dumps(call.get("args") or {})
+                    if name not in tools_called:
+                        tools_called.append(name)
+                    view = _tool_view(name, {})
+                    self._send_frame(
+                        {
+                            "kind": "tool",
+                            "id": cid,
+                            "tool": name,
+                            "label": view["label"],
+                            "icon": view["icon"],
+                        }
+                    )
 
             content = getattr(chunk, "content", None)
             if isinstance(content, list):
@@ -392,11 +729,11 @@ class Handler(BaseHTTPRequestHandler):
             elif isinstance(content, str) and content:
                 self._send_frame({"kind": "text", "delta": content})
 
-            meta = getattr(chunk, "usage_metadata", None)
-            if meta:
+            usage_meta = getattr(chunk, "usage_metadata", None)
+            if usage_meta:
                 usage = {
-                    "input_tokens": int(meta.get("input_tokens", 0)),
-                    "output_tokens": int(meta.get("output_tokens", 0)),
+                    "input_tokens": int(usage_meta.get("input_tokens", 0)),
+                    "output_tokens": int(usage_meta.get("output_tokens", 0)),
                 }
 
         # The verdict lives on graph state, written by ObligationGateMiddleware in
@@ -408,8 +745,12 @@ class Handler(BaseHTTPRequestHandler):
             "decision": "not-reached",
             "reason": "the gate did not record a verdict for this turn",
         }
-        final = values.get("messages", [])
-        reply = getattr(final[-1], "text", "") if final else ""
+        # The checkpointer returns the WHOLE thread. Slice to this turn, and join
+        # every assistant message in it — not just the last one, which is often a
+        # short closing summary after the real content (the "content vanished,
+        # only the summary is left" bug).
+        final = _this_turn(values.get("messages", []))
+        reply = _turn_reply(final)
 
         # What the agent actually DID — every tool call with its key argument, in
         # order. This is the "show the searches and links" view: web_search shows
@@ -519,6 +860,41 @@ def _tracing_status() -> str:
     return "off — set LANGSMITH_TRACING=true and LANGSMITH_API_KEY to enable"
 
 
+def _describe_memory() -> dict[str, Any]:
+    """The durable-memory graph for the UI: facts, episodes, entities.
+
+    Off (AGENT_MEMORY unset) returns enabled=False so the UI can say so rather
+    than error. A connection/query failure is reported in `error`, not raised —
+    the memory view must degrade to a message, never take the dashboard down.
+    """
+    from agent.memory import semantic
+
+    if not semantic.memory_enabled():
+        return {"enabled": False, "facts": [], "episodes": [], "entities": []}
+    try:
+        snap = semantic.snapshot()
+        return {"enabled": True, **snap}
+    except Exception as exc:  # noqa: BLE001 — reported to the UI, not raised
+        return {
+            "enabled": True,
+            "error": f"{type(exc).__name__}: {exc}",
+            "facts": [],
+            "episodes": [],
+            "entities": [],
+        }
+
+
+def _google_connected() -> bool:
+    """Whether Google is connected (one token grants calendar + gmail read).
+    Guarded — a connector probe must never break the config endpoint."""
+    try:
+        from agent.tools import google_auth
+
+        return google_auth.is_connected()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _describe_config() -> dict[str, Any]:
     """What the harness is configured to do, for the UI to state plainly.
 
@@ -535,6 +911,12 @@ def _describe_config() -> dict[str, Any]:
         "region": REGION,
         "credential_source": credential_source(),
         "tracing": _tracing_status(),
+        # Connector status — a boolean per integration, never a token. Calendar
+        # and Gmail share one Google sign-in, so both reflect the same token.
+        "connectors": {
+            "google_calendar": _google_connected(),
+            "gmail": _google_connected(),
+        },
         "verified_models": [dict(entry) for entry in VERIFIED_MODELS],
         "policies": [
             {"name": p.name, "description": p.description, "obligations": len(p.obligations)}

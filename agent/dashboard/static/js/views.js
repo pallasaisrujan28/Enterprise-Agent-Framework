@@ -75,7 +75,138 @@ function chatView() {
     );
 }
 
+/* The memory view — the durable graph Graphiti has learned. A read-only window
+ * onto facts (semantic), episodes (episodic), and entities. It fetches its own
+ * data (unlike the overview, which is a pure function of the topology payload),
+ * so the view returns a shell and fills it once /api/memory answers. */
+function memoryView() {
+  setTimeout(loadMemory, 0);
+  return "<h1>Memory</h1>" +
+    '<p class="subtitle">Durable, self-updating memory — the facts and episodes ' +
+    "the agent has learned from your conversations, held in a temporal knowledge " +
+    "graph.</p>" +
+    '<div id="memorybody">' + uiNotice("note", "loading memory…") + "</div>";
+}
+
+async function loadMemory() {
+  var body = document.getElementById("memorybody");
+  if (!body) { return; }
+  try {
+    var m = await getJSON("/api/memory");
+    body.innerHTML = renderMemory(m);
+  } catch (e) {
+    body.innerHTML = uiNotice("failed", "Could not load <code>/api/memory</code>: " + esc(e.message));
+  }
+}
+
+function renderMemory(m) {
+  if (!m.enabled) {
+    return uiNotice(
+      "note",
+      "Memory is off. Start the server with <code>AGENT_MEMORY=on</code> (and the " +
+      "<code>neo4j</code> container running) to enable durable memory."
+    );
+  }
+  if (m.error) {
+    return uiNotice("failed", "Memory backend error: " + esc(m.error));
+  }
+
+  var facts = m.facts || [], eps = m.episodes || [], ents = m.entities || [];
+
+  var factList = facts.length
+    ? "<ul class='memlist'>" + facts.map(function (f) {
+        var superseded = f.invalid_at
+          ? " " + uiBadge("superseded", "partial")
+          : "";
+        var link = esc(f.source || "?") + " &rarr; " + esc(f.target || "?");
+        return "<li><span class='memfact'>" + esc(f.fact || "") + "</span>" + superseded +
+          "<span class='tele meta'>" + link + "</span></li>";
+      }).join("") + "</ul>"
+    : "<p class='label'>No facts yet — chat with the agent and they accumulate.</p>";
+
+  var epList = eps.length
+    ? "<ul class='memlist'>" + eps.map(function (e) {
+        var when = e.at ? "<span class='tele meta'>" + esc(String(e.at).slice(0, 19)) + "</span>" : "";
+        var body = esc((e.content || "").slice(0, 200));
+        return "<li><strong>" + esc(e.name || "episode") + "</strong> " + when +
+          "<br><span class='label'>" + body + "</span></li>";
+      }).join("") + "</ul>"
+    : "<p class='label'>No episodes yet.</p>";
+
+  var entList = ents.length
+    ? "<ul class='memlist'>" + ents.map(function (n) {
+        return "<li><strong>" + esc(n.name || "") + "</strong>" +
+          (n.summary ? " — <span class='label'>" + esc(n.summary) + "</span>" : "") + "</li>";
+      }).join("") + "</ul>"
+    : "<p class='label'>No entities yet.</p>";
+
+  return uiCard(factList, { title: "Facts — semantic memory", action: uiBadge(facts.length + " edges") }) +
+    uiCard(epList, { title: "Episodes — episodic memory", action: uiBadge(eps.length) }) +
+    uiCard(entList, { title: "Entities", action: uiBadge(ents.length) });
+}
+
+/* Connections — external accounts the agent can read from. Sign in ONCE; the
+ * token is cached (owner-only) and auto-refreshes, so this is not a per-turn
+ * prompt. Status comes from /api/config (a boolean per connector, never a
+ * token); the Connect button runs the one-time OAuth flow, which only works on
+ * the local dashboard (a deployed instance needs the web OAuth connector). */
+function connectionsView() {
+  setTimeout(loadConnections, 0);
+  return "<h1>Connections</h1>" +
+    '<p class="subtitle">External accounts the agent can read from. Sign in once — ' +
+    "the token is cached and refreshes itself, so you are not asked again.</p>" +
+    '<div id="connbody">' + uiNotice("note", "loading…") + "</div>";
+}
+
+async function loadConnections() {
+  var body = document.getElementById("connbody");
+  if (!body) { return; }
+  try {
+    var c = await getJSON("/api/config");
+    body.innerHTML = renderConnections((c && c.connectors) || {});
+    setTimeout(wireConnect, 0);
+  } catch (e) {
+    body.innerHTML = uiNotice("failed", "Could not load <code>/api/config</code>: " + esc(e.message));
+  }
+}
+
+function renderConnections(conn) {
+  var connected = !!conn.google_calendar || !!conn.gmail;
+  var status = connected ? uiBadge("connected", "ok") : uiBadge("not connected", "partial");
+  var body = connected
+    ? "<p class='label'>Connected (read-only). One sign-in covers both — ask me " +
+      "\u201cwhat meetings do I have today?\u201d or \u201cany unread email from X?\u201d</p>"
+    : "<button id='connect-gcal' class='btn'>Connect Google</button>" +
+      "<p class='label'>One sign-in grants read access to your Calendar and Gmail. " +
+      "Opens your browser; local dashboard only, and needs a Desktop OAuth client " +
+      "saved at <code>$EAF_HOME/credentials.json</code>.</p>";
+  return uiCard(body, { title: "Google (Calendar + Gmail)", action: status });
+}
+
+function wireConnect() {
+  var b = document.getElementById("connect-gcal");
+  if (!b) { return; }
+  b.onclick = async function () {
+    b.disabled = true;
+    b.textContent = "Opening browser…";
+    try {
+      var r = await fetch("/api/connect/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      });
+      var j = await r.json();
+      alert(j.message || j.error || "done");
+    } catch (e) {
+      alert("Connect failed: " + e.message);
+    }
+    loadConnections();
+  };
+}
+
 var VIEWS = {
   overview: overviewView,
-  chat: chatView
+  chat: chatView,
+  memory: memoryView,
+  connections: connectionsView
 };
