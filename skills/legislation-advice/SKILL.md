@@ -1,17 +1,14 @@
 ---
-name: legislation_advice
-description: Answering questions about UK statute.
+name: legislation-advice
+description: Answering questions about what a specific UK Act or Statutory Instrument says, requires, permits, or prohibits — statutory interpretation at a date. Use for questions about the text of UK legislation, not fees or general guidance.
 ---
 
 <!--
-  TRANSITIONAL DUPLICATE. Two skill systems coexist in this repo:
-    - the live disclosure path is deepagents SkillsMiddleware, which reads
-      skills/<name>/SKILL.md — see skills/legislation-advice/SKILL.md (that is the
-      copy the model actually sees in its skills catalogue);
-    - the custom agent/skills_engine loader (test-only now) reads this FLAT file
-      and validates its scopes/obligations parsing.
-  This flat file is kept so the skills_engine tests keep exercising that loader
-  until it is formally retired. deepagents ignores it (it is not a directory).
+  CAPABILITY ONLY. This skill teaches the procedure; it no longer carries
+  obligations. The enforceable rules for this domain — must_cite,
+  must_ask_when_missing, must_disclose — now live in obligations/legislation.yaml
+  and are enforced by the obligation gate, independent of this file. See
+  agent/obligation_policy.py for why they were split.
 -->
 
 ## When this applies

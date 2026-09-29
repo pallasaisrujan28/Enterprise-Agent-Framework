@@ -10,11 +10,21 @@
 #              applies to a given question — it need not mention any skill.
 # obligations: checked by agent/gate.py against the finished answer.
 
+# NARROWED so the router only fires on genuine statutory-interpretation
+# questions, and EASED so it stops over-blocking:
+#   - description excludes fees/costs/how-to/eligibility/gov.uk guidance, which
+#     were being misclassified as legislation (e.g. "UK visa fee for 3 years").
+#   - must_cite no longer demands version-pinning (a legislation.gov.uk source is
+#     enough); version-pinning is a refinement we can restore once the model
+#     returns structured citations.
+#   - must_ask_when_missing is OBSERVE, not enforce: the gate infers fields from
+#     prose and cannot yet extract `as_at_date`, so enforcing it blocked every
+#     substantive answer. Recorded for visibility until structured responses land.
 name: legislation
 description: >
-  Questions about what UK legislation says, requires, permits, or prohibits —
-  statute, regulations, and their effect as at a date.
+  Statutory interpretation of a specific UK Act or Statutory Instrument — what it
+  says, requires, or prohibits. NOT fees, costs, how-to, eligibility, or guidance.
 obligations:
-  - must_cite: {contains: legislation.gov.uk, version_pinned: true}
-  - must_ask_when_missing: {fields: [as_at_date]}
+  - must_cite: {contains: legislation.gov.uk, min_count: 1}
+  - must_ask_when_missing: {fields: [as_at_date], mode: observe}
   - must_disclose: {when: unapplied_effects_exist, disclose: unapplied_effects}
