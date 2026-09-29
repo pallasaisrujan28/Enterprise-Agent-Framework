@@ -23,6 +23,17 @@ agent — Enterprise Agent Framework
         the local dashboard. Defaults to 127.0.0.1:7788.
         Overview renders the architecture from agent.dashboard.topology.
 
+  agent connect google
+        sign in to Google Calendar (read-only) so the agent can read your
+        schedule. Opens your browser. Needs `.[gcal]` installed and a Desktop
+        OAuth client saved at $EAF_HOME/credentials.json (default ~/.eaf/).
+
+  agent memory clean [--apply]
+        review long-term memory for junk (facts about the assistant, trivia,
+        browsed listings, recorded failures). Dry run by default: it only
+        lists what it would remove. --apply deletes them (not reversible).
+        Needs AGENT_MEMORY=on and Neo4j.
+
   agent --help
         this message
 """
@@ -61,6 +72,36 @@ def main() -> None:
         except ValueError:
             raise SystemExit(f"--port must be a number, got {port_text!r}") from None
         serve(host=host, port=port)
+        return
+
+    if command == "connect":
+        target = args[1] if len(args) > 1 else ""
+        if target == "google":
+            from agent.tools.calendar import connect
+
+            print(connect())
+            return
+        raise SystemExit("usage: agent connect google")
+
+    if command == "memory":
+        if len(args) < 2 or args[1] != "clean":
+            raise SystemExit("usage: agent memory clean [--apply]")
+        from agent.memory import hygiene
+        from agent.model import get_model
+
+        flagged = hygiene.find_junk(get_model())
+        if not flagged:
+            print("memory looks clean — nothing flagged.")
+            return
+        for f in flagged:
+            print(f"[{f.kind}] {f.text}\n      why: {f.why}")
+        n_facts = sum(f.kind == "fact" for f in flagged)
+        print(f"\n{n_facts} fact(s), {len(flagged) - n_facts} episode(s) flagged.")
+        if "--apply" not in args:
+            print("dry run — nothing deleted. Re-run with --apply to remove these.")
+            return
+        facts, episodes = hygiene.apply(flagged)
+        print(f"removed {facts} fact(s) and {episodes} episode(s).")
         return
 
     print(f"unknown command {command!r}\n")
