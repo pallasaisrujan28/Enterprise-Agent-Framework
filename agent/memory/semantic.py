@@ -28,6 +28,19 @@ from typing import Any
 
 DEFAULT_GROUP = os.getenv("MEMORY_GROUP_ID", "default")
 
+# Ids of notes (edge-less entities) carry this prefix so update/forget can tell
+# them from fact edges.
+NOTE_PREFIX = "note:"
+# Notes added to recall on top of the fact results. Small: each is a paragraph.
+_MAX_NOTES = int(os.getenv("MEMORY_MAX_NOTES", "3"))
+
+
+def _note_text(node: Any) -> str:
+    """A note as one recall line: '<entity name>: <summary>'."""
+    summary = " ".join(str(getattr(node, "summary", "") or "").split())
+    return f"{getattr(node, 'name', '')}: {summary}"
+
+
 # Neo4j emits a WARNING notification for every property key a query mentions that
 # does not exist yet (normal on a fresh/small graph — e.g. `fact_embedding`
 # before any edge is written). They are harmless and extremely noisy, so quiet
@@ -178,6 +191,42 @@ class _GraphitiRuntime:
         )
         return list(results.edges)
 
+    async def _search_notes(self, query: str, group_id: str, num_results: int) -> list[Any]:
+        """Entities whose knowledge lives ONLY in their summary.
+
+        A saved note ("user-visa-timeline: granted 5 Aug 2026, valid until …") can
+        be extracted as a single entity with a rich summary and no RELATES_TO
+        edges. Edge search can never return it, so without this the note is
+        stored but unrecallable. Only edge-less entities are returned: an entity
+        with edges already surfaces through its facts, and its summary would
+        just repeat them."""
+        import copy
+
+        from graphiti_core.search.search_config_recipes import NODE_HYBRID_SEARCH_RRF
+
+        config = copy.deepcopy(NODE_HYBRID_SEARCH_RRF)
+        config.limit = max(num_results * 2, 10)
+        results = await self._graphiti.search_(query, config=config, group_ids=[group_id])
+        nodes = [n for n in results.nodes if (getattr(n, "summary", "") or "").strip()]
+        if not nodes:
+            return []
+        res = await self._graphiti.driver.execute_query(
+            "UNWIND $uuids AS u MATCH (n:Entity {uuid: u}) "
+            "WHERE NOT (n)-[:RELATES_TO]-() RETURN n.uuid AS uuid",
+            uuids=[n.uuid for n in nodes],
+        )
+        orphan = {r["uuid"] for r in res.records}
+        return [n for n in nodes if n.uuid in orphan][:num_results]
+
+    async def _search_all(
+        self, query: str, group_id: str, num_results: int
+    ) -> tuple[list[Any], list[Any]]:
+        edges, notes = await asyncio.gather(
+            self._search_current(query, group_id, num_results),
+            self._search_notes(query, group_id, _MAX_NOTES),
+        )
+        return edges, notes
+
     def recall(
         self,
         query: str,
@@ -189,23 +238,39 @@ class _GraphitiRuntime:
 
         `timeout` bounds how long the caller waits — recall is best-effort and
         must not hang a turn; on expiry it raises so the caller can proceed."""
-        edges = self._run(self._search_current(query, group_id, num_results), timeout=timeout)
-        return [getattr(e, "fact", str(e)) for e in edges]
+        edges, notes = self._run(self._search_all(query, group_id, num_results), timeout=timeout)
+        return [getattr(e, "fact", str(e)) for e in edges] + [_note_text(n) for n in notes]
 
     def search_facts(
         self, query: str, group_id: str = DEFAULT_GROUP, num_results: int = 8
     ) -> list[tuple[str, str]]:
-        """Like recall, but returns (edge_uuid, fact) so a fact can be updated or
-        forgotten by id. The uuid is Graphiti's stable edge identifier."""
-        edges = self._run(self._search_current(query, group_id, num_results))
-        return [(str(getattr(e, "uuid", "")), getattr(e, "fact", str(e))) for e in edges]
+        """Like recall, but returns (id, fact) so a fact can be updated or forgotten
+        by id. Facts use Graphiti's edge uuid; notes (edge-less entities) use
+        NOTE_PREFIX + the entity uuid, so update/forget know which one to touch."""
+        edges, notes = self._run(self._search_all(query, group_id, num_results))
+        return [(str(getattr(e, "uuid", "")), getattr(e, "fact", str(e))) for e in edges] + [
+            (f"{NOTE_PREFIX}{n.uuid}", _note_text(n)) for n in notes
+        ]
 
     def update_fact(self, uuid: str, new_fact: str) -> bool:
-        """Rewrite the text of one fact edge. Returns True if an edge matched.
+        """Rewrite the text of one fact edge (or a note's summary). Returns True if
+        something matched.
 
         The stored vector (fact_embedding) is left as-is — a correction changes the
         text the model reads; refreshing the embedding is a nice-to-have, not
         required for the fact to be shown once recalled."""
+        if uuid.startswith(NOTE_PREFIX):
+            node = uuid.removeprefix(NOTE_PREFIX)
+
+            async def _qn() -> int:
+                res = await self._graphiti.driver.execute_query(
+                    "MATCH (n:Entity {uuid: $uuid}) SET n.summary = $fact RETURN count(n) AS n",
+                    uuid=node,
+                    fact=new_fact,
+                )
+                return int(res.records[0]["n"]) if res.records else 0
+
+            return self._run(_qn()) > 0
 
         async def _q() -> int:
             res = await self._graphiti.driver.execute_query(
@@ -221,7 +286,21 @@ class _GraphitiRuntime:
         """Delete one fact edge by uuid. Returns True if an edge was removed.
 
         This is the "forget" path — a hard delete of the RELATES_TO edge. The
-        entities it connected stay; only the asserted fact between them goes."""
+        entities it connected stay; only the asserted fact between them goes.
+        A note id deletes the edge-less entity itself (it has nothing else)."""
+        if uuid.startswith(NOTE_PREFIX):
+            node = uuid.removeprefix(NOTE_PREFIX)
+
+            async def _qn() -> int:
+                res = await self._graphiti.driver.execute_query(
+                    "MATCH (n:Entity {uuid: $uuid}) WHERE NOT (n)-[:RELATES_TO]-() "
+                    "WITH collect(n) AS ns FOREACH (x IN ns | DETACH DELETE x) "
+                    "RETURN size(ns) AS n",
+                    uuid=node,
+                )
+                return int(res.records[0]["n"]) if res.records else 0
+
+            return self._run(_qn()) > 0
 
         async def _q() -> int:
             # Count via collect() BEFORE deleting — you cannot RETURN count(e)

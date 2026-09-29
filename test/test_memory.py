@@ -219,3 +219,73 @@ def test_hygiene_flags_failure_episodes_but_keeps_real_ones() -> None:
     good = "User: who is simon?\nAssistant: Simon Moore is your recruiter at AstraZeneca."
     assert _episode_is_junk(bad)
     assert _episode_is_junk(good) == ""
+
+
+# ── notes: edge-less entities must be recallable ─────────────────────────────
+# Regression: a saved note ("user-visa-timeline: granted 5 Aug 2026 …") became a
+# single entity with a summary and NO fact edges. Recall searched edges only, so
+# the note was stored but never came back.
+
+
+def _fake_runtime() -> Any:
+    import asyncio
+    import threading
+    from types import SimpleNamespace
+
+    from agent.memory.semantic import _GraphitiRuntime
+
+    edge = SimpleNamespace(uuid="e1", fact="The user shops for groceries at Tesco.")
+    note = SimpleNamespace(uuid="n1", name="user-visa-timeline", summary="Granted 5 Aug 2026.")
+    linked = SimpleNamespace(uuid="n2", name="Tesco", summary="A supermarket.")
+    blank = SimpleNamespace(uuid="n3", name="£769", summary="")
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    class Driver:
+        async def execute_query(self, cypher: str, **kw: Any) -> Any:
+            calls.append((cypher, kw))
+            if "UNWIND" in cypher:  # which candidates have no edges
+                return SimpleNamespace(records=[{"uuid": "n1"}])
+            return SimpleNamespace(records=[{"n": 1}])
+
+    class Graphiti:
+        driver = Driver()
+
+        async def search_(self, query: str, config: Any, group_ids: Any, **_: Any) -> Any:
+            if config.edge_config is not None:
+                return SimpleNamespace(edges=[edge], nodes=[])
+            return SimpleNamespace(edges=[], nodes=[note, linked, blank])
+
+    rt = object.__new__(_GraphitiRuntime)
+    rt._loop = asyncio.new_event_loop()
+    threading.Thread(target=rt._loop.run_forever, daemon=True).start()
+    rt._graphiti = Graphiti()
+    rt.calls = calls
+    return rt
+
+
+def test_recall_includes_edgeless_notes_but_not_linked_entities() -> None:
+    rt = _fake_runtime()
+    facts = rt.recall("visa start date")
+    assert facts == [
+        "The user shops for groceries at Tesco.",
+        "user-visa-timeline: Granted 5 Aug 2026.",
+    ]
+
+
+def test_notes_get_prefixed_ids_that_update_and_forget_route_to_the_entity() -> None:
+    from agent.memory.semantic import NOTE_PREFIX
+
+    rt = _fake_runtime()
+    ids = [i for i, _ in rt.search_facts("visa")]
+    assert ids == ["e1", f"{NOTE_PREFIX}n1"]
+
+    assert rt.update_fact(f"{NOTE_PREFIX}n1", "Granted 6 Aug 2026.")
+    cypher, kw = rt.calls[-1]
+    assert "SET n.summary" in cypher and kw["uuid"] == "n1"
+
+    assert rt.forget_fact(f"{NOTE_PREFIX}n1")
+    cypher, kw = rt.calls[-1]
+    assert "DETACH DELETE" in cypher and "NOT (n)-[:RELATES_TO]-()" in cypher
+
+    assert rt.forget_fact("e1")
+    assert "RELATES_TO {uuid: $uuid}" in rt.calls[-1][0]

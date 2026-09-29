@@ -66,18 +66,23 @@ def manage_memory(action: str, query: str = "", id: str = "", content: str = "")
             if not query.strip():
                 return "Provide a search query."
             hits = semantic.search_facts(query.strip())
+            print(
+                f"memory search (tool): {len(hits)} hit(s) for {query.strip()[:120]!r}", flush=True
+            )
+            for _uuid, fact in hits:
+                print(f"  · {' '.join(str(fact).split())[:200]}", flush=True)
             if not hits:
                 return "No matching facts."
             return "\n".join(f"#{uuid} {fact}" for uuid, fact in hits if uuid)
         if act == "update":
             if not id.strip() or not content.strip():
                 return "Update needs both id (from a search) and the new content."
-            ok = semantic.update_fact(id.strip(), content.strip())
+            ok = semantic.update_fact(id.strip().lstrip("#"), content.strip())
             return f"Updated fact #{id}." if ok else f"No fact found with id {id}."
         if act in ("forget", "delete"):
             if not id.strip():
                 return "Forget needs the id of the fact (from a search)."
-            ok = semantic.forget_fact(id.strip())
+            ok = semantic.forget_fact(id.strip().lstrip("#"))
             return f"Forgotten fact #{id}." if ok else f"No fact found with id {id}."
         return "action must be one of: search, update, forget"
     except Exception as exc:  # noqa: BLE001 — readable failure, never crash the turn
