@@ -16,8 +16,9 @@ from pathlib import Path
 import pytest
 
 from agent.gate import evaluate
-from agent.obligation_policy import load_policy
+from agent.obligation_policy import ObligationPolicy, load_policy
 from agent.skills_engine import Draft, load_skillset
+from agent.skills_engine.model import Obligation
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 OBLIGATIONS_DIR = Path(__file__).resolve().parent.parent / "obligations"
@@ -25,7 +26,30 @@ OBLIGATIONS_DIR = Path(__file__).resolve().parent.parent / "obligations"
 
 @pytest.fixture
 def legislation_policy():
-    return load_policy(OBLIGATIONS_DIR / "legislation.yaml")
+    """A STRICT policy for exercising the gate MECHANISM.
+
+    Built inline, deliberately independent of the shipped
+    obligations/legislation.yaml. The shipped policy is intentionally eased (see
+    test_shipped_legislation_policy_is_eased); these tests still need the strict
+    obligations to prove the gate can enforce version-pinning, ask-when-missing,
+    and disclosure. Keeping them inline decouples "does the gate work" from "what
+    do we currently ship".
+    """
+    return ObligationPolicy(
+        name="legislation",
+        description="statutory interpretation (test fixture)",
+        obligations=(
+            Obligation(
+                kind="must_cite",
+                params={"contains": "legislation.gov.uk", "version_pinned": True},
+            ),
+            Obligation(kind="must_ask_when_missing", params={"fields": ["as_at_date"]}),
+            Obligation(
+                kind="must_disclose",
+                params={"when": "unapplied_effects_exist", "disclose": "unapplied_effects"},
+            ),
+        ),
+    )
 
 
 def _good_draft(**overrides):
@@ -140,3 +164,20 @@ def test_shipped_skillset_loads_and_is_pinned():
     assert skillset.skills
     assert len(skillset.version) == 16
     assert load_skillset(SKILLS_DIR).version == skillset.version
+
+
+def test_shipped_legislation_policy_is_eased():
+    """The SHIPPED policy is deliberately lenient, distinct from the strict
+    fixture above. This locks the easing so it is not silently tightened back:
+
+      - must_ask_when_missing is OBSERVE (can't be satisfied from prose yet), so
+        it records rather than blocks — otherwise every legislation answer blocks.
+      - must_cite does NOT demand version-pinning (a legislation.gov.uk source
+        suffices), so a correct answer is not withheld for lacking a date segment.
+    """
+    policy = load_policy(OBLIGATIONS_DIR / "legislation.yaml")
+    by_kind = {o.kind: o for o in policy.obligations}
+
+    assert by_kind["must_ask_when_missing"].mode == "observe"
+    assert not by_kind["must_ask_when_missing"].blocking
+    assert not by_kind["must_cite"].params.get("version_pinned", False)

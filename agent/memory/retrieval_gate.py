@@ -16,15 +16,25 @@ import json
 from typing import Any
 
 _GATE_PROMPT = """\
-You are a retrieval gate for a personal assistant's long-term memory.
-Given the user's message, decide if answering well needs the user's stored
-memory (facts about them, their people, projects, preferences, or past events).
+You are a retrieval gate for an assistant's long-term memory. The memory stores
+facts about the user (their people, projects, preferences, past events) AND what
+the assistant itself has done and found in earlier turns — products it looked at,
+options it compared, pages it read, answers it gave.
+
+Given the user's message, decide if answering well needs that stored memory.
 
 Reply with ONLY this JSON, nothing else:
 {{"retrieve": true or false, "query": "<search keywords if true, else empty>"}}
 
-General knowledge, math, small talk, or self-contained requests -> false.
-Anything referencing the user's own life, people, plans, or history -> true.
+Return true when the message references:
+  - the user's own life, people, plans, preferences, or history, OR
+  - something the assistant did or discussed earlier — e.g. "what else did you
+    consider", "the options you showed me", "what did you find", "that product
+    from before", "earlier you said". These look back at the session/history and
+    NEED memory even though they are phrased about the assistant.
+
+Return false only for genuinely self-contained requests: general knowledge,
+math, small talk, or a brand-new task that refers to nothing prior.
 
 User message: {message}"""
 
