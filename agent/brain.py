@@ -59,6 +59,7 @@ from agent.middleware.context import (
 from agent.middleware.debug import PromptDebugMiddleware
 from agent.middleware.memory import MemoryMiddleware
 from agent.middleware.obligations import ObligationGateMiddleware
+from agent.middleware.tool_catalog import ToolCatalog, ToolCatalogMiddleware
 from agent.model import get_fast_model, get_model, get_model_named
 from agent.skills_engine.author import create_skill
 from agent.soul import load_soul, update_soul
@@ -74,6 +75,23 @@ SKILLS_DIR = str(Path(__file__).parents[1] / "skills")
 OBLIGATIONS_DIR = str(Path(__file__).parents[1] / "obligations")
 
 _checkpointer = get_checkpointer()
+
+# DEFERRED tools: registered with the agent but hidden from the model until
+# `find_tools` unlocks them (agent/middleware/tool_catalog.py). Each maps to the
+# capability area named in the prompt's one-line index. Core tools (filesystem,
+# planning, delegation, web search/fetch) stay always visible.
+DEFERRED_TOOLS = [
+    (list_recent_emails, "email"),
+    (read_email, "email"),
+    (list_calendar_events, "calendar"),
+    (save_note, "long-term memory"),
+    (manage_memory, "long-term memory"),
+    (update_soul, "persona rules"),
+    (create_skill, "skill authoring"),
+]
+# Built once per process: tool embeddings are computed on first search and cached
+# here, while build_agent runs per request.
+_catalog = ToolCatalog([t for t, _ in DEFERRED_TOOLS], {t.name: a for t, a in DEFERRED_TOOLS})
 
 
 def _tool_error_message(exc: Exception, request: Any) -> str:
@@ -260,6 +278,10 @@ def build_agent(model_id: str | None = None):
         # stays plumbing, not policy. PTC allowlist is a permission boundary —
         # only these retrieval tools, nothing that mutates durable state.
         build_interpreter_middleware([*search_tools, fetch_url]),
+        # Hides DEFERRED_TOOLS from the model until find_tools unlocks them, so
+        # their schemas are not paid for on every call. They stay in `tools=`
+        # below, so they still run (and the general-purpose subagent keeps them).
+        ToolCatalogMiddleware(_catalog),
     ]
 
     # Durable memory (Graphiti on Neo4j) — added only when AGENT_MEMORY=on, so
