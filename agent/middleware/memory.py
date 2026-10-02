@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from collections.abc import Callable
 from concurrent.futures import TimeoutError as FuturesTimeout
 from typing import Any, NotRequired
@@ -55,6 +56,11 @@ class MemoryState(AgentState):
     # Set when recall was wanted but the backend was too slow, so the answer can
     # honestly say it proceeded without long-term memory.
     memory_skipped: NotRequired[bool]
+
+
+def _clip(text: str, limit: int = 120) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 def _latest_human(messages: list[Any]) -> str:
@@ -250,13 +256,17 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):
         # (retrieve anyway): a stale memory beats a lost one, and we must not turn
         # a gate hiccup into "no context". should_retrieve already fails open on
         # exception; this guard covers it defensively.
+        t0 = time.monotonic()
         try:
             retrieve, query = retrieval_gate.should_retrieve(self._router, message)
         except Exception as exc:  # noqa: BLE001 — gate failure => retrieve anyway
             print(f"memory gate failed open: {type(exc).__name__}: {exc}", flush=True)
             retrieve, query = True, message
+        gate_s = time.monotonic() - t0
         if not retrieve:
+            print(f"memory gate: skip recall ({gate_s:.1f}s) for {_clip(message)!r}", flush=True)
             return {"recalled_memory": ""}
+        print(f"memory gate: recall ({gate_s:.1f}s) query={_clip(query)!r}", flush=True)
 
         # RECALL IS THE CONTEXT — give it a real but BOUNDED budget. If the
         # backend is healthy it returns in ~1-2s; if it is throttled/slow, we wait
@@ -275,6 +285,15 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):
             print(f"memory recall skipped: {type(exc).__name__}: {exc}", flush=True)
             return {"recalled_memory": ""}
 
+        recall_s = time.monotonic() - t0 - gate_s
+        # What the model will see this turn. Local-only log (the dashboard binds
+        # to 127.0.0.1); facts are clipped so a long episode doesn't flood it.
+        print(
+            f"memory recall: {len(facts)} fact(s) in {recall_s:.1f}s (group={self._group})",
+            flush=True,
+        )
+        for f in facts:
+            print(f"  · {_clip(str(f), 200)}", flush=True)
         if not facts:
             return {"recalled_memory": "", "memory_skipped": False}
         block = "## What you remember about the user\n" + "\n".join(f"- {f}" for f in facts)
