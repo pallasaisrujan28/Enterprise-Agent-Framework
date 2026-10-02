@@ -9,7 +9,10 @@ Google tool reads from the same cached, auto-refreshing token.
 
 The principles carried from the calendar tool stay:
 
-  READ-ONLY scopes only. The agent can see, never change.
+  READ scopes, plus ONE write scope: gmail.compose (create drafts and send
+  them). Sending is gated by a human Send / Don't send decision in the chat
+  (HumanInTheLoop on send_draft in agent/brain.py); nothing else can change
+  mail, calendars, or delete anything.
 
   BEST-EFFORT, NEVER FATAL. Missing deps, an unconnected account, or an expired
   token return None / a sentence — never an exception. A connector hiccup must
@@ -28,11 +31,14 @@ import contextlib
 import os
 from pathlib import Path
 
-# Every read scope the agent uses, granted together in one consent. Adding a new
-# Google connector = add its readonly scope here (and users re-consent once).
+GMAIL_COMPOSE = "https://www.googleapis.com/auth/gmail.compose"
+
+# Every scope the agent uses, granted together in one consent. Adding a new
+# Google connector = add its scope here (and users re-consent once).
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.events.readonly",
     "https://www.googleapis.com/auth/gmail.readonly",
+    GMAIL_COMPOSE,
 ]
 
 INSTALL_HINT = "Google support is not installed — run: pip install -e '.[gcal]'"
@@ -121,7 +127,11 @@ def load_credentials():
     if not path.exists():
         return None
     try:
-        creds = Credentials.from_authorized_user_file(str(path), scopes=SCOPES)
+        # The token's OWN granted scopes, not SCOPES: asking to refresh with a
+        # scope that was never granted (an older read-only token, before
+        # gmail.compose existed) fails with invalid_scope and would break the
+        # read tools too. Write tools check has_scope() and ask to reconnect.
+        creds = Credentials.from_authorized_user_file(str(path))
     except Exception:  # noqa: BLE001 — a corrupt token is "not connected", not a crash
         return None
     if creds and creds.expired and creds.refresh_token:
@@ -131,6 +141,19 @@ def load_credentials():
         except Exception:  # noqa: BLE001 — a failed refresh means reconnect, not crash
             return None
     return creds if (creds and creds.valid) else None
+
+
+def has_scope(creds, scope: str) -> bool:
+    """Whether the cached token was granted `scope` (False if unknown)."""
+    granted = getattr(creds, "granted_scopes", None) or getattr(creds, "scopes", None) or []
+    return scope in set(granted)
+
+
+RECONNECT_FOR_COMPOSE = (
+    "Drafting and sending email needs one more Google permission. Reconnect Google "
+    "(`agent connect google` or the Connections tab) and approve 'Manage drafts and "
+    "send emails'. Reading email keeps working meanwhile."
+)
 
 
 def connect() -> str:
@@ -156,4 +179,7 @@ def connect() -> str:
         return f"Google sign-in failed or was cancelled ({type(exc).__name__}). Nothing was saved."
 
     _write_token(creds)
-    return f"Google connected (read-only: calendar + email). Token cached (owner-only) at {token_path()}."
+    return (
+        "Google connected (read calendar + email; draft and send email, each send "
+        f"confirmed by you in the chat). Token cached (owner-only) at {token_path()}."
+    )
