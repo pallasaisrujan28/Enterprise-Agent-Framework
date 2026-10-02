@@ -117,6 +117,19 @@ def test_middleware_hides_deferred_until_unlocked() -> None:
     assert [t.name for t in mw.tools] == ["find_tools"]
 
 
+def test_a_match_loads_its_whole_area() -> None:
+    cat = ToolCatalog(
+        [list_recent_emails, list_calendar_events, update_soul],
+        {
+            "list_recent_emails": "email",
+            "list_calendar_events": "email",
+            "update_soul": "persona rules",
+        },
+    )
+    assert cat.expand(["list_recent_emails"]) == ["list_recent_emails", "list_calendar_events"]
+    assert cat.expand([]) == []
+
+
 def test_find_tools_unlocks_via_state_update() -> None:
     mw = ToolCatalogMiddleware(_catalog())
     find = mw.tools[0]

@@ -155,6 +155,17 @@ class ToolCatalog:
         floor = ranked[0][1] * _RELATIVE_CUTOFF
         return [(n, s) for n, s in ranked[:k] if s >= floor]
 
+    def expand(self, names: list[str]) -> list[str]:
+        """Matched tools plus the rest of their capability AREA, in match order.
+
+        Tools in an area work as a set: draft_email is useless without
+        send_draft, list_recent_emails without read_email. Loading the area keeps
+        the follow-up step callable without a second search."""
+        areas = [self.areas.get(n) for n in names]
+        out = list(names)
+        out += [t for t, a in self.areas.items() if a in areas and t not in out]
+        return out
+
     def index_line(self) -> str:
         areas = sorted(set(self.areas.values()))
         return (
@@ -168,8 +179,7 @@ class ToolCatalog:
 
 def build_find_tools(catalog: ToolCatalog) -> BaseTool:
     def find_tools(query: str, runtime: ToolRuntime) -> Command:
-        hits = catalog.search(query)
-        names = [n for n, _ in hits]
+        names = catalog.expand([n for n, _ in catalog.search(query)])
         lines = [
             f"- {n}: {(catalog.tools[n].description or '').strip().splitlines()[0][:160]}"
             for n in names
