@@ -59,6 +59,7 @@ from agent.middleware.context import (
 from agent.middleware.debug import PromptDebugMiddleware
 from agent.middleware.memory import MemoryMiddleware
 from agent.middleware.obligations import ObligationGateMiddleware
+from agent.middleware.tool_catalog import ToolCatalog, ToolCatalogMiddleware
 from agent.model import get_fast_model, get_model, get_model_named
 from agent.skills_engine.author import create_skill
 from agent.soul import load_soul, update_soul
@@ -66,6 +67,7 @@ from agent.tools.browser_mcp import browser_enabled
 from agent.tools.calendar import list_calendar_events
 from agent.tools.fetch import fetch_url
 from agent.tools.gmail import list_recent_emails, read_email
+from agent.tools.gmail_write import draft_email, send_approval_description, send_draft
 from agent.tools.searxng_mcp import build_search_tools
 
 REGION = os.getenv("AWS_DEFAULT_REGION", "eu-west-2")
@@ -74,6 +76,37 @@ SKILLS_DIR = str(Path(__file__).parents[1] / "skills")
 OBLIGATIONS_DIR = str(Path(__file__).parents[1] / "obligations")
 
 _checkpointer = get_checkpointer()
+
+# DEFERRED tools: registered with the agent but hidden from the model until
+# `find_tools` unlocks them (agent/middleware/tool_catalog.py). Each maps to the
+# capability area named in the prompt's one-line index. Core tools (filesystem,
+# planning, delegation, web search/fetch) stay always visible.
+DEFERRED_TOOLS = [
+    (list_recent_emails, "email"),
+    (read_email, "email"),
+    (draft_email, "email"),
+    (send_draft, "email"),
+    (list_calendar_events, "calendar"),
+    (save_note, "long-term memory"),
+    (manage_memory, "long-term memory"),
+    (update_soul, "persona rules"),
+    (create_skill, "skill authoring"),
+]
+# Built once per process: tool embeddings are computed on first search and cached
+# here, while build_agent runs per request.
+_catalog = ToolCatalog([t for t, _ in DEFERRED_TOOLS], {t.name: a for t, a in DEFERRED_TOOLS})
+
+# Tools that PAUSE the graph for a human decision before they run. send_draft is
+# the only one: the dashboard shows the real draft with Send / Don't send, and
+# only Send resumes it. Enforced by HumanInTheLoopMiddleware (deepagents installs
+# it from this map, and the general-purpose subagent inherits it), so a prompt
+# injection or a typed "yes" cannot send mail.
+INTERRUPT_ON: dict[str, Any] = {
+    "send_draft": {
+        "allowed_decisions": ["approve", "reject"],
+        "description": send_approval_description,
+    },
+}
 
 
 def _tool_error_message(exc: Exception, request: Any) -> str:
@@ -260,6 +293,10 @@ def build_agent(model_id: str | None = None):
         # stays plumbing, not policy. PTC allowlist is a permission boundary —
         # only these retrieval tools, nothing that mutates durable state.
         build_interpreter_middleware([*search_tools, fetch_url]),
+        # Hides DEFERRED_TOOLS from the model until find_tools unlocks them, so
+        # their schemas are not paid for on every call. They stay in `tools=`
+        # below, so they still run (and the general-purpose subagent keeps them).
+        ToolCatalogMiddleware(_catalog),
     ]
 
     # Durable memory (Graphiti on Neo4j) — added only when AGENT_MEMORY=on, so
@@ -295,7 +332,12 @@ def build_agent(model_id: str | None = None):
             list_calendar_events,
             list_recent_emails,
             read_email,
+            # Gmail write: drafts are harmless; send_draft is paused by
+            # INTERRUPT_ON until the user presses Send.
+            draft_email,
+            send_draft,
         ],
+        interrupt_on=INTERRUPT_ON,
         # Freshness anchor (today's date + "verify time-sensitive facts") plus the
         # delegation guidance that replaces the interpreter's "say 'workflow'"
         # heuristic with a judgement on the shape of the task.

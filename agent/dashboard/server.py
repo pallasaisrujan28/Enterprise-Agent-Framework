@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from langgraph.types import Command
+
 from agent.dashboard import topology
 from agent.middleware.obligations import load_obligation_policies
 from agent.model import (
@@ -45,6 +47,9 @@ DEFAULT_PORT = 7788
 # it is a cost control. An accidental paste of a large file becomes a bill, and
 # the model would truncate it anyway.
 MAX_MESSAGE_CHARS = 8000
+
+# The two buttons on a paused action (send_draft): Send -> approve, Don't send -> reject.
+APPROVAL_DECISIONS = frozenset({"approve", "reject"})
 
 # Bound to loopback by default and stated plainly: this server has NO
 # authentication. It now carries CONVERSATION CONTENT as well as component
@@ -333,6 +338,25 @@ def _agent_for(model_id: str = ""):
         return existing
 
 
+def _pending_interrupts(agent: Any, thread: str) -> list[Any]:
+    """Interrupts this thread is paused on (e.g. send_draft awaiting a decision).
+    Read from the checkpoint, so it survives a page reload or a server restart."""
+    try:
+        state = agent.get_state({"configurable": {"thread_id": thread}})
+    except Exception:  # noqa: BLE001 — an unreadable checkpoint is "nothing pending"
+        return []
+    return list(getattr(state, "interrupts", ()) or ())
+
+
+def _approval_actions(interrupts: list[Any]) -> list[dict[str, Any]]:
+    """The paused actions as the UI shows them: tool name + what it will do."""
+    return [
+        {"name": a.get("name"), "description": a.get("description", "")}
+        for i in interrupts
+        for a in (getattr(i, "value", None) or {}).get("action_requests", [])
+    ]
+
+
 class Handler(BaseHTTPRequestHandler):
     # Quieter than the default, which logs a line per static asset.
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
@@ -508,7 +532,15 @@ class Handler(BaseHTTPRequestHandler):
         client is a plain `fetch` plus a reader, exactly as waku does it.
         """
         message = str(body.get("message", "")).strip()
-        if not message:
+        # A Send / Don't send click resumes a paused turn instead of starting one.
+        resume = body.get("resume") if isinstance(body.get("resume"), dict) else None
+        decision = str((resume or {}).get("decision", "")).strip()
+        if resume is not None and decision not in APPROVAL_DECISIONS:
+            self._send_json(
+                {"error": f"decision must be one of {sorted(APPROVAL_DECISIONS)}"}, status=400
+            )
+            return
+        if resume is None and not message:
             self._send_json({"error": "message is required"}, status=400)
             return
         if len(message) > MAX_MESSAGE_CHARS:
@@ -534,6 +566,24 @@ class Handler(BaseHTTPRequestHandler):
 
         thread = str(body.get("session", "default"))
 
+        # A paused turn (e.g. an email waiting for Send / Don't send) must be
+        # decided by the buttons. A new message would otherwise be read as the
+        # answer — or leave the email hanging — so it is refused until then.
+        pending = _pending_interrupts(_agent_for(requested), thread)
+        if resume is None and pending:
+            # The actions go back too, so a reloaded page can show the buttons again.
+            self._send_json(
+                {
+                    "error": "an action is waiting for your decision — press Send or Don't send first",
+                    "approval": _approval_actions(pending),
+                },
+                status=409,
+            )
+            return
+        if resume is not None and not pending:
+            self._send_json({"error": "nothing is waiting for a decision in this chat"}, status=409)
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
@@ -543,7 +593,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            self._run_turn(message, thread, requested)
+            self._run_turn(message, thread, requested, decision if resume is not None else None)
         except BrokenPipeError:
             # The reader closed the tab mid-turn. Not an error — but the turn is
             # abandoned here rather than finished, so nothing is recorded, which
@@ -561,7 +611,9 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
 
-    def _run_turn(self, message: str, thread: str, model_id: str) -> None:
+    def _run_turn(
+        self, message: str, thread: str, model_id: str, decision: str | None = None
+    ) -> None:
         """Drive the deepagents graph and translate it into SSE frames.
 
         THE ORDERING IS THE HONEST PART, and it is why this cannot simply forward
@@ -616,8 +668,24 @@ class Handler(BaseHTTPRequestHandler):
         call_name: dict[str, str] = {}
         call_args: dict[str, str] = {}
         index_to_id: dict[int, str] = {}
+        if decision is not None:
+            # Resume the paused graph with the button's decision, applied to every
+            # action in each pending interrupt (HumanInTheLoop expects one per call).
+            graph_input: Any = Command(
+                resume={
+                    i.id: {
+                        "decisions": [
+                            {"type": decision} for _ in (i.value or {}).get("action_requests", [])
+                        ]
+                    }
+                    for i in _pending_interrupts(agent, thread)
+                }
+            )
+            print(f"approval thread={thread} decision={decision}", flush=True)
+        else:
+            graph_input = {"messages": [{"role": "user", "content": message}]}
         for ns, payload in agent.stream(
-            {"messages": [{"role": "user", "content": message}]},
+            graph_input,
             config=run_config,
             stream_mode="messages",
             subgraphs=True,
@@ -741,6 +809,32 @@ class Handler(BaseHTTPRequestHandler):
         # from the messages.
         state = agent.get_state(run_config)
         values = state.values if state else {}
+
+        # PAUSED for a human decision (send_draft). The turn has not finished, so
+        # the obligation gate has not run; send the approval request and end this
+        # stream. The Send / Don't send click resumes it as a new stream.
+        waiting = list(getattr(state, "interrupts", ()) or ()) if state else []
+        if waiting:
+            actions = _approval_actions(waiting)
+            reply = _turn_reply(_this_turn(values.get("messages", [])))
+            print(
+                f"turn thread={thread} paused for approval: {[a['name'] for a in actions]}",
+                flush=True,
+            )
+            self._send_frame({"kind": "approval", "actions": actions})
+            self._send_frame(
+                {
+                    "kind": "done",
+                    "reply": reply,
+                    "awaiting_approval": True,
+                    "tools": tools_called,
+                    "activity": _tool_activity(_this_turn(values.get("messages", []))),
+                    "model": model_id or MODEL_ID,
+                    "usage": usage,
+                    "supersedes_draft": False,
+                }
+            )
+            return
         verdict = values.get("obligation_verdict") or {
             "decision": "not-reached",
             "reason": "the gate did not record a verdict for this turn",

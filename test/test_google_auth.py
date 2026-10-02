@@ -45,8 +45,12 @@ def test_write_token_is_owner_only(monkeypatch: pytest.MonkeyPatch, tmp_path) ->
     assert stat.S_IMODE(token.stat().st_mode) == 0o600
 
 
-def test_scopes_are_readonly() -> None:
-    """Every granted scope must be a readonly scope — the agent never writes."""
-    assert all("readonly" in s for s in ga.SCOPES)
+def test_only_write_scope_is_gmail_compose() -> None:
+    """Read scopes, plus exactly one write scope: gmail.compose (drafts + send,
+    each send confirmed by the user). Anything broader — gmail.modify, full
+    mail, calendar write — must be a deliberate change to this test."""
+    writes = [s for s in ga.SCOPES if "readonly" not in s]
+    assert writes == [ga.GMAIL_COMPOSE]
+    assert ga.GMAIL_COMPOSE == "https://www.googleapis.com/auth/gmail.compose"
     assert any("calendar" in s for s in ga.SCOPES)
     assert any("gmail" in s for s in ga.SCOPES)
