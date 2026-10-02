@@ -441,6 +441,12 @@ body.dock-closed .dock-resizer { display: none; }
   cursor: pointer;
 }
 .btn:hover { border-color: var(--accent); color: var(--text-strong); }
+
+/* Send / Don't send on a paused action (send_draft). */
+.approval { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 8px; }
+.approval.decided { border-color: var(--rule); opacity: 0.8; }
+.approval-preview { white-space: pre-wrap; margin: 8px 0; max-height: 320px; overflow: auto; }
+.approval-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-primary { border-color: var(--accent); color: var(--accent-fg); }
 .btn.on { border-color: var(--accent); color: var(--accent-fg); }
 

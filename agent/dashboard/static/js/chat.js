@@ -264,11 +264,38 @@ function turnCard(m) {
     stageStrip(m) +
     subagentTrail(m) +
     toolTrail(m) +
-    '<div class="reply">' + mdToHtml(m.reply) + "</div>" +
+    (m.reply ? '<div class="reply">' + mdToHtml(m.reply) + "</div>" : "") +
     withheld +
+    approvalBox(m) +
     teleFooter(m),
     { cls: m.refused ? "assistant refused" : "assistant" }
   );
+}
+
+/* A paused action (send_draft) waiting for the user. The preview is the draft's
+ * real headers and body, fetched from Gmail by the server — not the model's
+ * description of it. Only these buttons can resume the turn. */
+function approvalBox(m) {
+  if (!m.approval) { return ""; }
+  var items = (m.approval.actions || []).map(function (a) {
+    return '<pre class="approval-preview">' + esc(a.description || a.name) + "</pre>";
+  }).join("");
+  if (m.approval.decided) {
+    var sent = m.approval.decided === "approve";
+    return '<div class="approval decided">' + items +
+      '<div class="label">' + (sent ? "you chose: Send" : "you chose: Don't send") + "</div></div>";
+  }
+  var idx = CHAT.indexOf(m);
+  return '<div class="approval">' +
+    '<div class="label">Send this email?</div>' + items +
+    '<div class="approval-actions">' +
+    '<button class="btn btn-primary" onclick="decideApproval(' + idx + ', \'approve\')">Send</button> ' +
+    '<button class="btn" onclick="decideApproval(' + idx + ', \'reject\')">Don\'t send</button>' +
+    "</div></div>";
+}
+
+function awaitingApproval() {
+  return CHAT.some(function (m) { return m.approval && !m.approval.decided; });
 }
 
 function renderChatLog() {
@@ -363,6 +390,10 @@ function applyEvent(pending, ev) {
     pending.stream = "";
     return;
   }
+  if (ev.kind === "approval") {
+    pending.approval = { actions: ev.actions || [], decided: "" };
+    return;
+  }
   if (ev.kind === "done") {
     pending.pending = false;
     if (ev.supersedes_draft) { pending.stream = ""; }
@@ -385,9 +416,30 @@ async function sendChat() {
   /* One turn at a time. Two concurrent turns would interleave into the same
    * session history and the model would see a scrambled conversation. */
   if (CHAT.some(function (m) { return m.pending; })) { return; }
+  /* An email is waiting for Send / Don't send: the buttons decide, not chat. */
+  if (awaitingApproval()) { return; }
 
   input.value = "";
   CHAT.push({ role: "user", text: text });
+  var body = { message: text, session: SESSION };
+  if (MODEL_OVERRIDE) { body.model = MODEL_OVERRIDE; }
+  await streamTurn(body);
+  if (input) { input.focus(); }
+}
+
+/* The Send / Don't send click: resume the paused turn with that decision. */
+async function decideApproval(index, decision) {
+  var m = CHAT[index];
+  if (!m || !m.approval || m.approval.decided) { return; }
+  if (CHAT.some(function (x) { return x.pending; })) { return; }
+  m.approval.decided = decision;
+  var body = { session: SESSION, resume: { decision: decision } };
+  if (MODEL_OVERRIDE) { body.model = MODEL_OVERRIDE; }
+  await streamTurn(body);
+}
+
+/* One streamed turn (a new message, or a resume) rendered into a fresh card. */
+async function streamTurn(body) {
   var pending = { role: "assistant", pending: true, stream: "", started: Date.now() };
   CHAT.push(pending);
   syncChatLog();
@@ -399,9 +451,6 @@ async function sendChat() {
   }, 1000);
 
   try {
-    var body = { message: text, session: SESSION };
-    if (MODEL_OVERRIDE) { body.model = MODEL_OVERRIDE; }
-
     var res = await fetch("/api/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -410,6 +459,16 @@ async function sendChat() {
 
     if (!res.ok) {
       var detail = await res.json().catch(function () { return {}; });
+      /* 409 with an approval: this chat is paused on an action (e.g. after a page
+       * reload lost the buttons). Show them again instead of an error. */
+      if (res.status === 409 && detail.approval && detail.approval.length) {
+        pending.pending = false;
+        pending.reply = "Waiting for your decision before anything else:";
+        pending.approval = { actions: detail.approval, decided: "" };
+        clearInterval(ticker);
+        syncChatLog();
+        return;
+      }
       throw new Error(detail.error || res.status + " from /api/chat/stream");
     }
 
@@ -450,7 +509,6 @@ async function sendChat() {
     pending.hint = "check the terminal running `agent dashboard`";
   }
   syncChatLog();
-  if (input) { input.focus(); }
 }
 
 /* ── controls ──────────────────────────────────────────────────────────────── */
