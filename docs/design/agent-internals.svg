@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1960 1500" width="1960" height="1500" font-family="Virgil, 'Comic Sans MS', 'Segoe Print', cursive">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#343a40"/></marker></defs>
+<rect width="1960" height="1500" fill="#ffffff"/>
+<text x="30" y="40" font-size="24" fill="#212529">EAF agent internals — one turn through the deepagents graph, its middleware, tools, memory and gates</text>
+<rect x="20" y="60" width="440" height="1420" rx="14" fill="none" stroke="#495057" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="34" y="88" font-size="15" font-weight="bold" fill="#495057">Around the loop</text>
+<rect x="490" y="60" width="450" height="1420" rx="14" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="504" y="88" font-size="15" font-weight="bold" fill="#2b8a3e">One turn = one graph run (LangGraph nodes, in order)</text>
+<rect x="500" y="561" width="430" height="470" rx="14" fill="#e3fafc" stroke="#0c8599" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="514" y="589" font-size="15" font-weight="bold" fill="#0c8599">THE LOOP  (repeats until the model stops calling tools)</text>
+<rect x="970" y="60" width="460" height="1420" rx="14" fill="none" stroke="#5c940d" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="984" y="88" font-size="15" font-weight="bold" fill="#5c940d">Middleware wrapped around every call (outer → inner)</text>
+<rect x="1460" y="60" width="480" height="1420" rx="14" fill="none" stroke="#364fc7" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="1474" y="88" font-size="15" font-weight="bold" fill="#364fc7">Tools (what the model can call)</text>
+<rect x="30" y="100" width="420" height="127" rx="9" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<text x="40" y="124" font-size="15" font-weight="bold" fill="#1971c2">Entry points</text>
+<text x="40" y="144" font-size="12.5" fill="#343a40" xml:space="preserve">dashboard  POST /api/chat/stream (SSE)</text>
+<text x="40" y="161" font-size="12.5" fill="#343a40" xml:space="preserve">  · new turn: {messages:[user]}</text>
+<text x="40" y="178" font-size="12.5" fill="#343a40" xml:space="preserve">  · Send / Don&#x27;t send: Command(resume=…)</text>
+<text x="40" y="195" font-size="12.5" fill="#343a40" xml:space="preserve">  · 409 while an action awaits a decision</text>
+<text x="40" y="212" font-size="12.5" fill="#343a40" xml:space="preserve">HTTP service (agent/service.py)</text>
+<rect x="30" y="257" width="420" height="161" rx="9" fill="#e5dbff" stroke="#5f3dc4" stroke-width="2"/>
+<text x="40" y="281" font-size="15" font-weight="bold" fill="#5f3dc4">build_agent()  — once per model, cached</text>
+<text x="40" y="301" font-size="12.5" fill="#343a40" xml:space="preserve">model: Kimi K3 (Bedrock)  fast: Nova Lite</text>
+<text x="40" y="318" font-size="12.5" fill="#343a40" xml:space="preserve">system prompt = soul.md + today&#x27;s date</text>
+<text x="40" y="335" font-size="12.5" fill="#343a40" xml:space="preserve">  + grounding rules + delegation guidance</text>
+<text x="40" y="352" font-size="12.5" fill="#343a40" xml:space="preserve">  (+ browser rules if AGENT_BROWSER)</text>
+<text x="40" y="369" font-size="12.5" fill="#343a40" xml:space="preserve">create_deep_agent(tools, middleware,</text>
+<text x="40" y="386" font-size="12.5" fill="#343a40" xml:space="preserve">  backend, subagents, skills=[&#x27;/skills&#x27;],</text>
+<text x="40" y="403" font-size="12.5" fill="#343a40" xml:space="preserve">  interrupt_on={send_draft}, checkpointer)</text>
+<rect x="30" y="448" width="420" height="127" rx="9" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="40" y="472" font-size="15" font-weight="bold" fill="#495057">Checkpointer — SQLite ~/.eaf/checkpoints.sqlite</text>
+<text x="40" y="492" font-size="12.5" fill="#343a40" xml:space="preserve">one row-set per thread_id (= chat session)</text>
+<text x="40" y="509" font-size="12.5" fill="#343a40" xml:space="preserve">state: messages · todos · files (scratch)</text>
+<text x="40" y="526" font-size="12.5" fill="#343a40" xml:space="preserve">  unlocked_tools · recalled_memory</text>
+<text x="40" y="543" font-size="12.5" fill="#343a40" xml:space="preserve">  memory_turns · obligation_verdict</text>
+<text x="40" y="560" font-size="12.5" fill="#343a40" xml:space="preserve">  pending interrupts (HITL)</text>
+<rect x="30" y="605" width="420" height="144" rx="9" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="40" y="629" font-size="15" font-weight="bold" fill="#495057">Filesystem — CompositeBackend</text>
+<text x="40" y="649" font-size="12.5" fill="#343a40" xml:space="preserve">/workspace/  → S3 (MinIO locally) — persists</text>
+<text x="40" y="666" font-size="12.5" fill="#343a40" xml:space="preserve">/skills/     → disk: repo skills/ (read)</text>
+<text x="40" y="683" font-size="12.5" fill="#343a40" xml:space="preserve">everything else → StateBackend</text>
+<text x="40" y="700" font-size="12.5" fill="#343a40" xml:space="preserve">  (lives in thread state, per chat)</text>
+<text x="40" y="717" font-size="12.5" fill="#343a40" xml:space="preserve">execute: registered, refuses —</text>
+<text x="40" y="734" font-size="12.5" fill="#343a40" xml:space="preserve">  no sandbox backend, no host shell</text>
+<rect x="30" y="779" width="420" height="144" rx="9" fill="#e5dbff" stroke="#5f3dc4" stroke-width="2"/>
+<text x="40" y="803" font-size="15" font-weight="bold" fill="#5f3dc4">Subagents  (via task / eval)</text>
+<text x="40" y="823" font-size="12.5" fill="#343a40" xml:space="preserve">general-purpose: inherits main tools</text>
+<text x="40" y="840" font-size="12.5" fill="#343a40" xml:space="preserve">  + interrupt_on (send still gated)</text>
+<text x="40" y="857" font-size="12.5" fill="#343a40" xml:space="preserve">research: web_search + fetch_url only</text>
+<text x="40" y="874" font-size="12.5" fill="#343a40" xml:space="preserve">browsing: Playwright MCP (AGENT_BROWSER=on)</text>
+<text x="40" y="891" font-size="12.5" fill="#343a40" xml:space="preserve">eval: QuickJS interpreter — task() global,</text>
+<text x="40" y="908" font-size="12.5" fill="#343a40" xml:space="preserve">  read-only PTC: web_search, fetch_url</text>
+<rect x="500" y="100" width="430" height="59" rx="9" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="510" y="124" font-size="14" font-weight="bold" fill="#2b8a3e">__start__</text>
+<text x="510" y="144" font-size="12.5" fill="#343a40" xml:space="preserve">user message appended to thread</text>
+<rect x="500" y="177" width="430" height="59" rx="9" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="510" y="201" font-size="15" font-weight="bold" fill="#2b8a3e">SkillsMiddleware.before_agent</text>
+<text x="510" y="221" font-size="12.5" fill="#343a40" xml:space="preserve">load skill catalogue from /skills (name + 1 line)</text>
+<rect x="500" y="254" width="430" height="59" rx="9" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="510" y="278" font-size="15" font-weight="bold" fill="#2b8a3e">PatchToolCalls.before_agent</text>
+<text x="510" y="298" font-size="12.5" fill="#343a40" xml:space="preserve">close dangling tool calls from a crash/resume</text>
+<rect x="500" y="331" width="430" height="59" rx="9" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="510" y="355" font-size="15" font-weight="bold" fill="#2b8a3e">CodeInterpreter.before_agent</text>
+<text x="510" y="375" font-size="12.5" fill="#343a40" xml:space="preserve">start the QuickJS session for eval</text>
+<rect x="500" y="408" width="430" height="127" rx="9" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="510" y="432" font-size="15" font-weight="bold" fill="#e8590c">MEMORY GATE — Memory.before_agent</text>
+<text x="510" y="452" font-size="12.5" fill="#343a40" xml:space="preserve">Nova Lite: does this message need memory?</text>
+<text x="510" y="469" font-size="12.5" fill="#343a40" xml:space="preserve">  no  → skip (log: memory gate: skip)</text>
+<text x="510" y="486" font-size="12.5" fill="#343a40" xml:space="preserve">  yes → Graphiti recall (facts + notes), ≤12 s</text>
+<text x="510" y="503" font-size="12.5" fill="#343a40" xml:space="preserve">  slow → answer without it, flagged</text>
+<text x="510" y="520" font-size="12.5" fill="#343a40" xml:space="preserve">→ state.recalled_memory</text>
+<rect x="520" y="605" width="390" height="76" rx="9" fill="#e3fafc" stroke="#0c8599" stroke-width="2"/>
+<text x="530" y="629" font-size="15" font-weight="bold" fill="#0c8599">model</text>
+<text x="530" y="649" font-size="12.5" fill="#343a40" xml:space="preserve">one Kimi K3 call, through the</text>
+<text x="530" y="666" font-size="12.5" fill="#343a40" xml:space="preserve">wrap_model_call stack →</text>
+<rect x="520" y="697" width="390" height="76" rx="9" fill="#ffe3e3" stroke="#c92a2a" stroke-width="2"/>
+<text x="530" y="721" font-size="15" font-weight="bold" fill="#c92a2a">HumanInTheLoop.after_model</text>
+<text x="530" y="741" font-size="12.5" fill="#343a40" xml:space="preserve">send_draft? → PAUSE (interrupt)</text>
+<text x="530" y="758" font-size="12.5" fill="#343a40" xml:space="preserve">dashboard shows Send / Don&#x27;t send</text>
+<rect x="520" y="789" width="390" height="59" rx="9" fill="#e3fafc" stroke="#0c8599" stroke-width="2"/>
+<text x="530" y="813" font-size="15" font-weight="bold" fill="#0c8599">TodoList.after_model → route</text>
+<text x="530" y="833" font-size="12.5" fill="#343a40" xml:space="preserve">tool calls → tools   ·   none → exit loop</text>
+<rect x="520" y="864" width="390" height="76" rx="9" fill="#e3fafc" stroke="#0c8599" stroke-width="2"/>
+<text x="530" y="888" font-size="15" font-weight="bold" fill="#0c8599">tools</text>
+<text x="530" y="908" font-size="12.5" fill="#343a40" xml:space="preserve">run each tool call through the</text>
+<text x="530" y="925" font-size="12.5" fill="#343a40" xml:space="preserve">wrap_tool_call stack → back to model</text>
+<rect x="500" y="1057" width="430" height="93" rx="9" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="510" y="1081" font-size="15" font-weight="bold" fill="#e8590c">Memory.after_agent — consolidation</text>
+<text x="510" y="1101" font-size="12.5" fill="#343a40" xml:space="preserve">quality gate: skip failed/trivial turns</text>
+<text x="510" y="1118" font-size="12.5" fill="#343a40" xml:space="preserve">every 3 turns → Graphiti add_episode</text>
+<text x="510" y="1135" font-size="12.5" fill="#343a40" xml:space="preserve">  (background, never blocks the reply)</text>
+<rect x="500" y="1168" width="430" height="59" rx="9" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="510" y="1192" font-size="15" font-weight="bold" fill="#2b8a3e">CodeInterpreter.after_agent</text>
+<text x="510" y="1212" font-size="12.5" fill="#343a40" xml:space="preserve">close the interpreter session</text>
+<rect x="500" y="1245" width="430" height="127" rx="9" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="510" y="1269" font-size="15" font-weight="bold" fill="#e8590c">EVAL GATE — ObligationGate.after_agent</text>
+<text x="510" y="1289" font-size="12.5" fill="#343a40" xml:space="preserve">Nova Lite routes the question to policies</text>
+<text x="510" y="1306" font-size="12.5" fill="#343a40" xml:space="preserve">  (obligations/*.yaml, e.g. legislation)</text>
+<text x="510" y="1323" font-size="12.5" fill="#343a40" xml:space="preserve">evaluate the final answer: must_cite, …</text>
+<text x="510" y="1340" font-size="12.5" fill="#343a40" xml:space="preserve">pass · nothing-to-enforce · unverified · block</text>
+<text x="510" y="1357" font-size="12.5" fill="#343a40" xml:space="preserve">block → answer replaced by a refusal</text>
+<rect x="500" y="1390" width="430" height="59" rx="9" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="510" y="1414" font-size="14" font-weight="bold" fill="#2b8a3e">__end__</text>
+<text x="510" y="1434" font-size="12.5" fill="#343a40" xml:space="preserve">dashboard reads verdict + reply from state</text>
+<rect x="980" y="100" width="440" height="36" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="990" y="124" font-size="15" font-weight="bold" fill="#5c940d">wrap_model_call — each model call</text>
+<rect x="990" y="144" width="420" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1000" y="168" font-size="14" font-weight="bold" fill="#5c940d">1. Skills</text>
+<text x="1000" y="188" font-size="12.5" fill="#343a40" xml:space="preserve">adds skill catalogue to the prompt</text>
+<rect x="993" y="202" width="414" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1003" y="226" font-size="14" font-weight="bold" fill="#5c940d">2. Filesystem</text>
+<text x="1003" y="246" font-size="12.5" fill="#343a40" xml:space="preserve">adds ls/read/write/edit/glob/grep prose</text>
+<rect x="996" y="260" width="408" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1006" y="284" font-size="14" font-weight="bold" fill="#5c940d">3. SubAgent</text>
+<text x="1006" y="304" font-size="12.5" fill="#343a40" xml:space="preserve">adds task tool + subagent roster</text>
+<rect x="999" y="318" width="402" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1009" y="342" font-size="14" font-weight="bold" fill="#5c940d">4. Summarization</text>
+<text x="1009" y="362" font-size="12.5" fill="#343a40" xml:space="preserve">&gt; 80k tokens: Nova Lite summary, keep 20 msgs</text>
+<rect x="1002" y="376" width="396" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1012" y="400" font-size="14" font-weight="bold" fill="#5c940d">5. TodoList</text>
+<text x="1012" y="420" font-size="12.5" fill="#343a40" xml:space="preserve">write_todos for genuinely multi-step work</text>
+<rect x="1005" y="434" width="390" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1015" y="458" font-size="14" font-weight="bold" fill="#5c940d">6. ContextEditing</text>
+<text x="1015" y="478" font-size="12.5" fill="#343a40" xml:space="preserve">&gt; 40k tokens: clear old tool outputs, keep 4</text>
+<rect x="1008" y="492" width="384" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1018" y="516" font-size="14" font-weight="bold" fill="#5c940d">7. CodeInterpreter</text>
+<text x="1018" y="536" font-size="12.5" fill="#343a40" xml:space="preserve">adds eval (JS) + task() inside code</text>
+<rect x="1011" y="550" width="378" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1021" y="574" font-size="14" font-weight="bold" fill="#5c940d">8. ToolCatalog</text>
+<text x="1021" y="594" font-size="12.5" fill="#343a40" xml:space="preserve">hides deferred tools until find_tools</text>
+<rect x="1014" y="608" width="372" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1024" y="632" font-size="14" font-weight="bold" fill="#5c940d">9. Memory</text>
+<text x="1024" y="652" font-size="12.5" fill="#343a40" xml:space="preserve">injects recalled facts + notes</text>
+<rect x="1017" y="666" width="366" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1027" y="690" font-size="14" font-weight="bold" fill="#5c940d">10. PromptDebug</text>
+<text x="1027" y="710" font-size="12.5" fill="#343a40" xml:space="preserve">prints the prompt if AGENT_DEBUG_PROMPT</text>
+<rect x="1020" y="724" width="360" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1030" y="748" font-size="14" font-weight="bold" fill="#5c940d">11. Prompt caching</text>
+<text x="1030" y="768" font-size="12.5" fill="#343a40" xml:space="preserve">Bedrock / Anthropic cache markers</text>
+<rect x="980" y="788" width="440" height="59" rx="9" fill="#ffffff" stroke="#495057" stroke-width="2"/>
+<text x="990" y="812" font-size="15" font-weight="bold" fill="#495057">→ Bedrock Converse: Kimi K3</text>
+<text x="990" y="832" font-size="12.5" fill="#343a40" xml:space="preserve">system prompt + visible tools + messages</text>
+<rect x="980" y="877" width="440" height="36" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="990" y="901" font-size="15" font-weight="bold" fill="#5c940d">wrap_tool_call — each tool call</text>
+<rect x="990" y="921" width="420" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1000" y="945" font-size="14" font-weight="bold" fill="#5c940d">1. Filesystem</text>
+<text x="1000" y="965" font-size="12.5" fill="#343a40" xml:space="preserve">route path → backend; big results → files</text>
+<rect x="993" y="979" width="414" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1003" y="1003" font-size="14" font-weight="bold" fill="#5c940d">2. ToolError</text>
+<text x="1003" y="1023" font-size="12.5" fill="#343a40" xml:space="preserve">exception → readable error message</text>
+<rect x="996" y="1037" width="408" height="52" rx="9" fill="#f4fce3" stroke="#5c940d" stroke-width="2"/>
+<text x="1006" y="1061" font-size="14" font-weight="bold" fill="#5c940d">3. HumanInTheLoop</text>
+<text x="1006" y="1081" font-size="12.5" fill="#343a40" xml:space="preserve">applies Send / Don&#x27;t send decision</text>
+<rect x="980" y="1101" width="440" height="59" rx="9" fill="#edf2ff" stroke="#364fc7" stroke-width="2"/>
+<text x="990" y="1125" font-size="15" font-weight="bold" fill="#364fc7">→ the tool runs</text>
+<text x="990" y="1145" font-size="12.5" fill="#343a40" xml:space="preserve">result → ToolMessage → back to the model</text>
+<rect x="1470" y="100" width="460" height="127" rx="9" fill="#edf2ff" stroke="#364fc7" stroke-width="2"/>
+<text x="1480" y="124" font-size="15" font-weight="bold" fill="#364fc7">Core — always visible (13)</text>
+<text x="1480" y="144" font-size="12.5" fill="#343a40" xml:space="preserve">files: ls read_file write_file edit_file</text>
+<text x="1480" y="161" font-size="12.5" fill="#343a40" xml:space="preserve">       delete glob grep  (execute refuses)</text>
+<text x="1480" y="178" font-size="12.5" fill="#343a40" xml:space="preserve">plan: write_todos      delegate: task, eval</text>
+<text x="1480" y="195" font-size="12.5" fill="#343a40" xml:space="preserve">web: searxng_web_search (MCP), fetch_url</text>
+<text x="1480" y="212" font-size="12.5" fill="#343a40" xml:space="preserve">find_tools — semantic catalog search</text>
+<rect x="1470" y="251" width="460" height="178" rx="9" fill="#f8f0fc" stroke="#862e9c" stroke-width="2"/>
+<text x="1480" y="275" font-size="15" font-weight="bold" fill="#862e9c">Deferred — loaded by find_tools</text>
+<text x="1480" y="295" font-size="12.5" fill="#343a40" xml:space="preserve">Titan v2 embedding of &#x27;name: description&#x27;,</text>
+<text x="1480" y="312" font-size="12.5" fill="#343a40" xml:space="preserve">cosine + keyword bonus, ≥80% of best,</text>
+<text x="1480" y="329" font-size="12.5" fill="#343a40" xml:space="preserve">whole area loads; stays for the thread</text>
+<text x="1480" y="346" font-size="12.5" fill="#343a40" xml:space="preserve">email: list_recent_emails read_email</text>
+<text x="1480" y="363" font-size="12.5" fill="#343a40" xml:space="preserve">       draft_email send_draft (HITL)</text>
+<text x="1480" y="380" font-size="12.5" fill="#343a40" xml:space="preserve">calendar: list_calendar_events</text>
+<text x="1480" y="397" font-size="12.5" fill="#343a40" xml:space="preserve">memory: save_note manage_memory</text>
+<text x="1480" y="414" font-size="12.5" fill="#343a40" xml:space="preserve">persona: update_soul   skills: create_skill</text>
+<rect x="1470" y="453" width="460" height="110" rx="9" fill="#f8f0fc" stroke="#862e9c" stroke-width="2"/>
+<text x="1480" y="477" font-size="15" font-weight="bold" fill="#862e9c">Skills — progressive disclosure</text>
+<text x="1480" y="497" font-size="12.5" fill="#343a40" xml:space="preserve">catalogue (name + 1 line) in every prompt</text>
+<text x="1480" y="514" font-size="12.5" fill="#343a40" xml:space="preserve">model read_file(&#x27;/skills/&lt;name&gt;/SKILL.md&#x27;)</text>
+<text x="1480" y="531" font-size="12.5" fill="#343a40" xml:space="preserve">  only when the task matches</text>
+<text x="1480" y="548" font-size="12.5" fill="#343a40" xml:space="preserve">create_skill writes new ones</text>
+<rect x="1470" y="587" width="460" height="127" rx="9" fill="#ffffff" stroke="#495057" stroke-width="2"/>
+<text x="1480" y="611" font-size="15" font-weight="bold" fill="#495057">External services</text>
+<text x="1480" y="631" font-size="12.5" fill="#343a40" xml:space="preserve">Bedrock: Kimi K3 · Nova Lite · Titan v2</text>
+<text x="1480" y="648" font-size="12.5" fill="#343a40" xml:space="preserve">Neo4j + Graphiti (long-term memory)</text>
+<text x="1480" y="665" font-size="12.5" fill="#343a40" xml:space="preserve">SearXNG (MCP) · Gmail / Calendar API</text>
+<text x="1480" y="682" font-size="12.5" fill="#343a40" xml:space="preserve">MinIO (S3 workspace) · Playwright MCP</text>
+<text x="1480" y="699" font-size="12.5" fill="#343a40" xml:space="preserve">LangSmith tracing (every call)</text>
+<polyline points="715.0,159 715.0,177" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,236 715.0,254" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,313 715.0,331" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,390 715.0,408" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,535 715.0,605" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,681 715.0,697" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,773 715.0,789" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,848 715.0,864" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="723.0" y="848.0" font-size="13" fill="#c2255c">tool calls</text>
+<polyline points="910,902.0 924,902.0 924,643.0 910,643.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="884" y="858" font-size="13" fill="#c2255c">loop</text>
+<polyline points="520,818.5 508,818.5 508,1043 715.0,1043 715.0,1057" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="514" y="1037" font-size="13" fill="#c2255c">no tool calls</text>
+<polyline points="715.0,1150 715.0,1168" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,1227 715.0,1245" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="715.0,1372 715.0,1390" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="240.0,227 240.0,257" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="450,277 470,277 470,129.5 500,129.5" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="330" y="271" font-size="13" fill="#c2255c">invoke(thread_id)</text>
+<polyline points="910,643.0 955,643.0 955,118.0 980,118.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="836" y="637.0" font-size="13" fill="#c2255c">each model call</text>
+<polyline points="910,914.0 955,914.0 955,895.0 980,895.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="842" y="906.0" font-size="13" fill="#c2255c">each tool call</text>
+<polyline points="450,468 480,468 480,139.5 500,139.5" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)" stroke-dasharray="7 5"/>
+<text x="300" y="462" font-size="13" fill="#c2255c">load / save state</text>
+</svg>

@@ -1,0 +1,40 @@
+# Per-domain source access policy, read by agent/tools/source_policy.py.
+#
+# This file is what a HUMAN decided about automated access to a site. It wins
+# over robots.txt. Sites not listed fall back to robots.txt, and anything that
+# cannot be determined is treated as "no automated access".
+#
+# access:
+#   api | feed | allowed      automated access is permitted (robots.txt still applies)
+#   email-alert               no automation; track via the site's own alert emails
+#   user-session-only         only when the user asks, in their own browser session
+#   blocked                   never
+#
+# terms_reviewed: true only once someone has read the site's current terms.
+# Review entries when a site's terms change. This is not legal advice.
+
+sources:
+  - domain: rightmove.co.uk
+    access: email-alert
+    terms_reviewed: false
+    reason: >-
+      No public search API (the ADF feed is for estate agents to upload listings).
+      robots.txt disallows /api/* for all agents (checked 2026-10-17).
+    alternative: >-
+      Ask the user to create a Rightmove saved search with email alerts, then read
+      the alert emails with the Gmail tools and extract the listings.
+
+  - domain: zoopla.co.uk
+    access: email-alert
+    terms_reviewed: false
+    reason: >-
+      Zoopla's terms prohibit scraping and automated access to the site.
+      robots.txt returns HTTP 403 to non-browser clients (checked 2026-10-17).
+    alternative: >-
+      Ask the user to create a Zoopla saved search with email alerts, then read
+      the alert emails with the Gmail tools and extract the listings.
+
+  - domain: quotes.toscrape.com
+    access: allowed
+    terms_reviewed: true
+    reason: A public sandbox built for scraping practice. Used by the discovery tests.

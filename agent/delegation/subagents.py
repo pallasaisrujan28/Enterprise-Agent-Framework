@@ -26,8 +26,10 @@ from __future__ import annotations
 
 from deepagents import SubAgent
 
+from agent.delegation.discovery import build_site_discovery_subagent
 from agent.tools.browser_mcp import browser_enabled, build_browser_tools
 from agent.tools.fetch import fetch_url
+from agent.tools.rea_mcp import rea_enabled
 from agent.tools.searxng_mcp import build_search_tools
 
 # The browsing/action agent's operating contract. The single most important rule
@@ -158,5 +160,10 @@ def build_subagents() -> list[SubAgent]:
                 tools=[*build_browser_tools(), *build_search_tools(), fetch_url],
             )
         )
+
+    # Site discovery (REA) is opt-in like browsing: AGENT_REA=on, and it needs
+    # Node + REA + a Chrome-family browser. See agent/delegation/discovery.py.
+    if rea_enabled():
+        roster.append(build_site_discovery_subagent())
 
     return roster

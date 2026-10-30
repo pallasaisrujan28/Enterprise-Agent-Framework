@@ -31,7 +31,10 @@ _SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9]|-(?!-)){0,62}[a-z0-9]$")
 
 
 def skills_dir() -> Path:
-    return Path(os.getenv("AGENT_SKILLS_DIR") or (Path(__file__).parents[1] / "skills"))
+    # parents[2] is the repo root: the SAME skills/ that brain.SKILLS_DIR mounts at
+    # /skills/. parents[1] (agent/) wrote to agent/skills, which SkillsMiddleware
+    # never reads, so an authored skill silently never loaded.
+    return Path(os.getenv("AGENT_SKILLS_DIR") or (Path(__file__).parents[2] / "skills"))
 
 
 def _slugify(name: str) -> str:

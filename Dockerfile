@@ -23,6 +23,9 @@ RUN uv sync --frozen --no-dev
 # Source — ordered from least to most frequently changed.
 COPY agent/ ./agent/
 COPY skills/ ./skills/
+# Source access policy for check_source_policy; without it every site is
+# "unknown" (fail closed), so site discovery cannot proceed in the image.
+COPY policies/ ./policies/
 COPY scripts/ ./scripts/
 
 # Non-root user.

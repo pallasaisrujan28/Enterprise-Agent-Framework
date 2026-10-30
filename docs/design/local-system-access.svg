@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1030" width="1680" height="1030" font-family="Virgil, 'Comic Sans MS', 'Segoe Print', cursive">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#343a40"/></marker></defs>
+<rect width="1680" height="1030" fill="#ffffff"/>
+<text x="40" y="36" font-size="22" fill="#212529">EAF local-system access — how a command runs and where malware-style actions are stopped</text>
+<rect x="650" y="60" width="640" height="700" rx="14" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="666" y="90" font-size="16" fill="#2b8a3e">EAF Local Bridge — separate signed app, owns the macOS permissions</text>
+<rect x="40" y="300" width="220" height="150" rx="10" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<text x="52" y="326" font-size="16" font-weight="bold" fill="#1971c2">You (dashboard)</text>
+<text x="52" y="350" font-size="13" fill="#343a40" xml:space="preserve">chat request</text>
+<text x="52" y="368" font-size="13" fill="#343a40" xml:space="preserve">Approve / Deny buttons</text>
+<text x="52" y="386" font-size="13" fill="#343a40" xml:space="preserve">Stop switch</text>
+<rect x="330" y="300" width="250" height="150" rx="10" fill="#e5dbff" stroke="#5f3dc4" stroke-width="2"/>
+<text x="342" y="326" font-size="16" font-weight="bold" fill="#5f3dc4">EAF agent (Kimi K3)</text>
+<text x="342" y="350" font-size="13" fill="#343a40" xml:space="preserve">find_tools(&#x27;local …&#x27;)</text>
+<text x="342" y="368" font-size="13" fill="#343a40" xml:space="preserve">→ local_* tools</text>
+<text x="342" y="386" font-size="13" fill="#343a40" xml:space="preserve">never sees a shell</text>
+<rect x="330" y="80" width="250" height="130" rx="10" fill="#fff3bf" stroke="#e67700" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="342" y="106" font-size="16" font-weight="bold" fill="#e67700">Untrusted content</text>
+<text x="342" y="130" font-size="13" fill="#343a40" xml:space="preserve">web pages, emails, files,</text>
+<text x="342" y="148" font-size="13" fill="#343a40" xml:space="preserve">screen text = DATA,</text>
+<text x="342" y="166" font-size="13" fill="#343a40" xml:space="preserve">never instructions</text>
+<rect x="680" y="120" width="270" height="90" rx="10" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="692" y="146" font-size="16" font-weight="bold" fill="#2b8a3e">1  Schema check</text>
+<text x="692" y="170" font-size="13" fill="#343a40" xml:space="preserve">typed capability, not a shell</text>
+<text x="692" y="188" font-size="13" fill="#343a40" xml:space="preserve">unknown verb → reject</text>
+<rect x="990" y="120" width="270" height="90" rx="10" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="1002" y="146" font-size="16" font-weight="bold" fill="#2b8a3e">2  Normalise target</text>
+<text x="1002" y="170" font-size="13" fill="#343a40" xml:space="preserve">realpath, resolve symlinks,</text>
+<text x="1002" y="188" font-size="13" fill="#343a40" xml:space="preserve">bundle id, argv (no strings)</text>
+<rect x="680" y="250" width="580" height="120" rx="10" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="692" y="276" font-size="16" font-weight="bold" fill="#e8590c">3  Policy engine (deterministic code, not the model)</text>
+<text x="692" y="300" font-size="13" fill="#343a40" xml:space="preserve">deny list first → allow lists (apps by bundle id, folder roots, commands)</text>
+<text x="692" y="318" font-size="13" fill="#343a40" xml:space="preserve">risk tier: 0 read · 1 reversible · 2 consequential · 3 destructive/system</text>
+<text x="692" y="336" font-size="13" fill="#343a40" xml:space="preserve">rate + blast-radius limits; tainted session (read untrusted) raises tier</text>
+<rect x="680" y="410" width="270" height="110" rx="10" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="692" y="436" font-size="16" font-weight="bold" fill="#e8590c">4  Approval gate</text>
+<text x="692" y="460" font-size="13" fill="#343a40" xml:space="preserve">tier ≥ 2 → pause (HITL)</text>
+<text x="692" y="478" font-size="13" fill="#343a40" xml:space="preserve">exact preview: app, paths,</text>
+<text x="692" y="496" font-size="13" fill="#343a40" xml:space="preserve">argv, file count</text>
+<rect x="990" y="410" width="270" height="110" rx="10" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="1002" y="436" font-size="16" font-weight="bold" fill="#2b8a3e">5  Executor</text>
+<text x="1002" y="460" font-size="13" fill="#343a40" xml:space="preserve">exec argv (no shell), timeout,</text>
+<text x="1002" y="478" font-size="13" fill="#343a40" xml:space="preserve">scrubbed env, workspace cwd,</text>
+<text x="1002" y="496" font-size="13" fill="#343a40" xml:space="preserve">sandbox profile: no network</text>
+<rect x="680" y="560" width="270" height="90" rx="10" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2"/>
+<text x="692" y="586" font-size="16" font-weight="bold" fill="#2b8a3e">6  Output filter</text>
+<text x="692" y="610" font-size="13" fill="#343a40" xml:space="preserve">size cap, redact secrets,</text>
+<text x="692" y="628" font-size="13" fill="#343a40" xml:space="preserve">wrap as &lt;untrusted&gt;</text>
+<rect x="990" y="560" width="270" height="90" rx="10" fill="#ffffff" stroke="#495057" stroke-width="2"/>
+<text x="1002" y="586" font-size="16" font-weight="bold" fill="#495057">Audit log (append-only)</text>
+<text x="1002" y="610" font-size="13" fill="#343a40" xml:space="preserve">every request, decision and</text>
+<text x="1002" y="628" font-size="13" fill="#343a40" xml:space="preserve">result · ~/.eaf/local-audit.jsonl</text>
+<rect x="680" y="690" width="580" height="50" rx="10" fill="#ffffff" stroke="#495057" stroke-width="2"/>
+<text x="692" y="716" font-size="16" font-weight="bold" fill="#495057">Unix socket ~/.eaf/bridge.sock (0600) + session token · no TCP port</text>
+<rect x="1360" y="250" width="260" height="270" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="1372" y="276" font-size="16" font-weight="bold" fill="#495057">macOS</text>
+<text x="1372" y="300" font-size="13" fill="#343a40" xml:space="preserve">LaunchServices: open / quit</text>
+<text x="1372" y="318" font-size="13" fill="#343a40" xml:space="preserve">Apple Events (allow-listed</text>
+<text x="1372" y="336" font-size="13" fill="#343a40" xml:space="preserve">  app + verb templates)</text>
+<text x="1372" y="354" font-size="13" fill="#343a40" xml:space="preserve">Accessibility tree: read,</text>
+<text x="1372" y="372" font-size="13" fill="#343a40" xml:space="preserve">  press, set value</text>
+<text x="1372" y="390" font-size="13" fill="#343a40" xml:space="preserve">Files in allowed roots</text>
+<text x="1372" y="408" font-size="13" fill="#343a40" xml:space="preserve">Trash (never empty it)</text>
+<rect x="1360" y="560" width="260" height="200" rx="10" fill="#ffe3e3" stroke="#c92a2a" stroke-width="2"/>
+<text x="1372" y="586" font-size="16" font-weight="bold" fill="#c92a2a">Never (hard deny)</text>
+<text x="1372" y="610" font-size="13" fill="#343a40" xml:space="preserve">sudo, installers (.pkg), brew</text>
+<text x="1372" y="628" font-size="13" fill="#343a40" xml:space="preserve">~/.ssh, Keychain, browser</text>
+<text x="1372" y="646" font-size="13" fill="#343a40" xml:space="preserve">  cookies/passwords, TCC.db</text>
+<text x="1372" y="664" font-size="13" fill="#343a40" xml:space="preserve">LaunchAgents, login items, cron</text>
+<text x="1372" y="682" font-size="13" fill="#343a40" xml:space="preserve">spctl/csrutil/tccutil, EDR, MDM</text>
+<text x="1372" y="700" font-size="13" fill="#343a40" xml:space="preserve">curl | sh, chmod +x downloads</text>
+<text x="1372" y="718" font-size="13" fill="#343a40" xml:space="preserve">rm -rf, empty Trash, kill -9</text>
+<rect x="40" y="800" width="1580" height="200" rx="10" fill="#ffffff" stroke="#495057" stroke-width="2"/>
+<text x="52" y="826" font-size="16" font-weight="bold" fill="#495057">Risk tiers → what happens   (agent cannot edit policy: ~/.eaf/policy.yaml is hard-denied · kill switch: Stop button / `agent local off`)</text>
+<text x="52" y="850" font-size="13" fill="#343a40" xml:space="preserve">0 read: list apps, read UI tree, read allowed files → allow, log</text>
+<text x="52" y="868" font-size="13" fill="#343a40" xml:space="preserve">1 reversible: open/activate app, polite quit, move to Trash (1 file),</text>
+<text x="52" y="886" font-size="13" fill="#343a40" xml:space="preserve">   create file in workspace → allow, log</text>
+<text x="52" y="904" font-size="13" fill="#343a40" xml:space="preserve">2 consequential: type/submit in an app, move/rename many files,</text>
+<text x="52" y="922" font-size="13" fill="#343a40" xml:space="preserve">   run an allow-listed command → ASK (Approve / Deny)</text>
+<text x="52" y="940" font-size="13" fill="#343a40" xml:space="preserve">3 destructive/system: anything on the hard-deny list → BLOCK</text>
+<polyline points="260,375.0 330,375.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="301.0" y="369.0" font-size="13" fill="#c2255c">ask</text>
+<polyline points="455.0,210 455.0,300" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)" stroke-dasharray="7 5"/>
+<text x="461.0" y="249.0" font-size="13" fill="#c2255c">read by tools</text>
+<polyline points="580,375.0 680,165.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="540" y="292" font-size="13" fill="#c2255c">MCP call</text>
+<polyline points="950,165.0 990,165.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="1125.0,210 970.0,250" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="970.0,370 815.0,410" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="898.5" y="384.0" font-size="13" fill="#c2255c">tier 2</text>
+<polyline points="970.0,370 1125.0,410" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="1053.5" y="384.0" font-size="13" fill="#c2255c">tier 0-1</text>
+<polyline points="950,465.0 990,465.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="958" y="456" font-size="13" fill="#c2255c">yes</text>
+<polyline points="680,465 150,465 150,450" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="170" y="486" font-size="13" fill="#c2255c">Approve / Deny (exact preview)</text>
+<polyline points="1260,265 1330,265 1330,232 1645,232 1645,660 1620,660" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)" stroke-dasharray="7 5"/>
+<text x="1350" y="226" font-size="13" fill="#c2255c">tier 3 → blocked</text>
+<polyline points="1260,465.0 1360,385.0" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<polyline points="1390,520 1390,540 965,540 965,605 950,605" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="1180" y="534" font-size="13" fill="#c2255c">raw result</text>
+<polyline points="680,605 520,605 520,450" fill="none" stroke="#343a40" stroke-width="2" marker-end="url(#ah)"/>
+<text x="530" y="597" font-size="13" fill="#c2255c">untrusted result</text>
+</svg>
