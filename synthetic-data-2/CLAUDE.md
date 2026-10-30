@@ -1,0 +1,5 @@
+- I want a iterative development approach , which means for every feature we implement we test and then check the results and then move on to the next feature development
+- I want you to do an iterative development .Please test after every features and look at the results of that step and confirm if the results are expected if not please go back and ehance the code
+- Never ever use fallback or mock data when a particular connection is failing , fix or report the issue
+- I dont want you to develop something just a place holder or a simulation or rule based or fallback or keyword based , If something is wrong you stop the development and notify me the error . Please do not write python code for explaining me the concepts .
+- never create a summary or any .md file just to explain me , what have you done simply explain it through words ,  i dont need   A DOCUMENT

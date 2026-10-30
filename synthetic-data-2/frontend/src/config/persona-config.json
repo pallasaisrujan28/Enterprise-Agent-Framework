@@ -1,0 +1,108 @@
+{
+  "personaConfiguration": {
+    "basicInfo": {
+      "name": "Target Audience Persona",
+      "ageRange": "25-34",
+      "genderDistribution": {
+        "male": 45,
+        "female": 55
+      },
+      "location": {
+        "country": "United States",
+        "state": "California",
+        "city": "San Francisco"
+      }
+    },
+    "demographics": {
+      "occupation": "Software Engineer",
+      "education": "Bachelor's Degree",
+      "income": "$75,000 - $100,000",
+      "familyStatus": "Single"
+    },
+    "personality": {
+      "traits": ["Analytical", "Creative", "Detail-oriented", "Collaborative"],
+      "values": ["Innovation", "Work-life balance", "Personal growth", "Sustainability"],
+      "lifestyle": ["Tech-savvy", "Health-conscious", "Urban living", "Social media active"]
+    },
+    "behavioral": {
+      "priceSensitivity": 3,
+      "brandLoyalty": 2,
+      "onlineShoppingPreference": 4,
+      "innovationVsTradition": 4,
+      "individualVsCommunity": 3,
+      "securityVsAdventure": 3
+    },
+    "mediaConsumption": {
+      "platforms": ["LinkedIn", "Twitter", "YouTube", "Instagram", "Reddit"],
+      "influences": ["Industry experts", "Peer reviews", "Social media", "Professional networks"],
+      "contentPreferences": "Tech blogs, industry news, tutorials, product reviews, and professional development content"
+    },
+    "decisionMaking": {
+      "style": "Researched",
+      "influences": ["Expert opinions", "User reviews", "Price comparison", "Feature analysis"]
+    },
+    "interests": {
+      "primary": ["Technology", "Professional Development", "Health & Fitness", "Travel"],
+      "categories": {
+        "Technology": ["AI/ML", "Web Development", "Mobile Apps", "Cloud Computing"],
+        "Professional Development": ["Coding", "Leadership", "Networking", "Certifications"],
+        "Health & Fitness": ["Gym", "Running", "Nutrition", "Mental Health"],
+        "Travel": ["City breaks", "Cultural experiences", "Food tourism", "Adventure travel"]
+      }
+    },
+    "context": {
+      "industry": "Technology",
+      "productCategory": "Software/SaaS",
+      "useCase": "B2B software tool for productivity and collaboration"
+    },
+    "goals": {
+      "primary": "Career advancement",
+      "secondary": ["Skill development", "Work-life balance", "Financial stability", "Professional recognition"],
+      "timeline": "1-2 years"
+    }
+  },
+  "generationSettings": {
+    "sample_size": 10,
+    "generation_method": "hybrid_advanced",
+    "quality_threshold": 0.8,
+    "enable_clustering": true,
+    "distribution_matching": true,
+    "target_clusters": 3,
+    "export_format": "json",
+    "project_name": "Target Audience Research",
+    "tags": ["tech", "professionals", "millennials", "urban"]
+  },
+  "validationRules": {
+    "required_fields": [
+      "basicInfo.name",
+      "basicInfo.ageRange",
+      "basicInfo.location.country",
+      "demographics.occupation",
+      "personality.traits",
+      "context.industry"
+    ],
+    "constraints": {
+      "genderDistribution_sum": 100,
+      "behavioral_scales": {
+        "min": 1,
+        "max": 5
+      },
+      "sample_size": {
+        "min": 1,
+        "max": 100
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "created_at": "2024-01-20T10:00:00Z",
+    "description": "Comprehensive persona configuration for target audience generation",
+    "use_cases": [
+      "Market research",
+      "Product development",
+      "User experience design",
+      "Marketing campaigns",
+      "Content strategy"
+    ]
+  }
+}

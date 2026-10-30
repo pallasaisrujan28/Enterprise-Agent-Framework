@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+backend.log
+backend_fresh.log
+backend_new.log
+nohup.out
+
+# Data and temporary files
+data/
+validation_plots/
+*.pkl
+*.csv
+*.json
+
+# Environment files (will be injected at runtime)
+.env
+.env.*
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+tests/
+pytest_cache/
+
+# Unnecessary files directory
+unnecessary_files/
+
+# Database exports
+db-export/
+
+# AWS deployment scripts
+aws-deployment/

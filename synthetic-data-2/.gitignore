@@ -1,0 +1,30 @@
+# Secrets - never commit. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Generated output / data artifacts
+audience_results/
+unnecessary_files/
+output/
+
+# Large binary source assets (use Git LFS if these need tracking)
+*.blend
+
+# OS
+.DS_Store

@@ -1,0 +1,1971 @@
+INFO:     Will watch for changes in these directories: ['/Users/Saisrujan/Downloads/Synthetic Data/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
+INFO:     Started reloader process [1458] using WatchFiles
+2025-11-06 21:44:39.480 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:44:39.480 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:44:39.480 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [1515]
+INFO:     Waiting for application startup.
+2025-11-06 21:44:39.482 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:44:39.484 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:44:39.484 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:44:39.484 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:44:39.484 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:44:39.484 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:44:39.485 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:44:39.485 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:44:39.485 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:44:39.485 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:44:39.485 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:44:45.234 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:44:45.235 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:44:45.235 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:44:45.235 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:44:45.235 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:44:45.235 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:44:45.235 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:44:45.235 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 44
+2025-11-06 21:44:45.236 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:44:45.236 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:44:45.236 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $100k-$150k
+2025-11-06 21:44:45.239 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:44:45.239 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:62998 - "POST /api/audience/chat-with-group HTTP/1.1" 404 Not Found
+✅ Connected to database
+INFO:     127.0.0.1:63094 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/Saisrujan/Downloads/Synthetic Data/backend/features/synthetic_audience/api.py", line 1780, in generate_insights_dashboard
+    "demographic_info": json.loads(row['demographic_info']) if row['demographic_info'] else {}
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 339, in loads
+    raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+TypeError: the JSON object must be str, bytes or bytearray, not dict
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error generating insights dashboard: the JSON object must be str, bytes or bytearray, not dict
+INFO:     127.0.0.1:63126 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63151 - "GET /api/audience/generate-insights-dashboard HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:63151 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  WatchFiles detected changes in 'features/synthetic_audience/api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1515]
+2025-11-06 21:45:46.228 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:45:46.228 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:45:46.228 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [2162]
+INFO:     Waiting for application startup.
+2025-11-06 21:45:46.230 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:45:46.232 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:45:46.232 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:45:46.232 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:45:46.232 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:45:46.232 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:45:46.233 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:45:46.233 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:45:46.233 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:45:46.233 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:45:46.233 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:45:52.006 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:45:52.007 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:45:52.007 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:45:52.007 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 36
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:45:52.007 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $30k-$50k
+2025-11-06 21:45:52.008 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:45:52.008 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'features/synthetic_audience/api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2162]
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+2025-11-06 21:46:14.702 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:46:14.703 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:46:14.703 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [2368]
+INFO:     Waiting for application startup.
+2025-11-06 21:46:14.704 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:46:14.707 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:46:14.707 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:46:14.707 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:46:14.707 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:46:14.707 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:46:14.707 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:46:14.707 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:46:14.707 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:46:14.707 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:46:14.707 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:46:20.300 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:46:20.300 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:46:20.300 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:46:20.300 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:46:20.300 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:46:20.300 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:46:20.300 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:46:20.301 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 43
+2025-11-06 21:46:20.301 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:46:20.301 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:46:20.302 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $100k-$150k
+2025-11-06 21:46:20.304 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:46:20.304 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+Traceback (most recent call last):
+  File "/Users/Saisrujan/Downloads/Synthetic Data/backend/features/synthetic_audience/api.py", line 1792, in generate_insights_dashboard
+    "demographic_info": json.loads(row['demographic_info']) if row['demographic_info'] else {}
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 339, in loads
+    raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+TypeError: the JSON object must be str, bytes or bytearray, not dict
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465510318-0.37076410223118583","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error generating insights dashboard: the JSON object must be str, bytes or bytearray, not dict
+INFO:     127.0.0.1:63485 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 500 Internal Server Error
+Traceback (most recent call last):
+  File "/Users/Saisrujan/Downloads/Synthetic Data/backend/features/synthetic_audience/api.py", line 1792, in generate_insights_dashboard
+    "demographic_info": json.loads(row['demographic_info']) if row['demographic_info'] else {}
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 339, in loads
+    raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+TypeError: the JSON object must be str, bytes or bytearray, not dict
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465510318-0.37076410223118583","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error generating insights dashboard: the JSON object must be str, bytes or bytearray, not dict
+INFO:     127.0.0.1:63528 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 500 Internal Server Error
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:63573 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/Saisrujan/Downloads/Synthetic Data/backend/features/synthetic_audience/api.py", line 1792, in generate_insights_dashboard
+    "demographic_info": json.loads(row['demographic_info']) if row['demographic_info'] else {}
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 339, in loads
+    raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+TypeError: the JSON object must be str, bytes or bytearray, not dict
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error generating insights dashboard: the JSON object must be str, bytes or bytearray, not dict
+INFO:     127.0.0.1:63625 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 500 Internal Server Error
+WARNING:  WatchFiles detected changes in 'features/synthetic_audience/api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2368]
+2025-11-06 21:47:54.683 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:47:54.684 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:47:54.684 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [3837]
+INFO:     Waiting for application startup.
+2025-11-06 21:47:54.685 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:47:54.688 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:47:54.688 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:47:54.688 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:47:54.688 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:47:54.688 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:47:54.688 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:47:54.688 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:47:54.689 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:47:54.689 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:47:54.689 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:48:04.023 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:48:04.023 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:48:04.023 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:48:04.023 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:48:04.023 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:48:04.023 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:48:04.023 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:48:04.024 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 20
+2025-11-06 21:48:04.025 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:48:04.025 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:48:04.025 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: Under $30k
+2025-11-06 21:48:04.029 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:48:04.029 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:63935 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:64098 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:64098 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'features/synthetic_audience/api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3837]
+2025-11-06 21:51:05.472 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:51:05.472 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:51:05.472 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [5184]
+INFO:     Waiting for application startup.
+2025-11-06 21:51:05.474 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:51:05.476 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:51:05.476 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:51:05.476 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:51:05.476 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:51:05.476 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:51:05.477 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:51:05.477 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:51:05.477 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:51:05.477 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:51:05.477 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:51:11.496 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:51:11.496 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:51:11.496 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:51:11.496 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:51:11.496 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:51:11.496 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:51:11.496 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:51:11.497 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 18
+2025-11-06 21:51:11.497 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:51:11.497 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:51:11.498 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $30k-$50k
+2025-11-06 21:51:11.501 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:51:11.501 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'services/conversation_insights_engine.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5184]
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+2025-11-06 21:51:52.625 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:51:52.625 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:51:52.625 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [5496]
+INFO:     Waiting for application startup.
+2025-11-06 21:51:52.627 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:51:52.629 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:51:52.629 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:51:52.629 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:51:52.629 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:51:52.629 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:51:52.629 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:51:52.629 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:51:52.629 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:51:52.629 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:51:52.629 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:51:58.025 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:51:58.025 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:51:58.025 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:51:58.025 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:51:58.025 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:51:58.026 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:51:58.026 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:51:58.027 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 40
+2025-11-06 21:51:58.028 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:51:58.028 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:51:58.028 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $100k-$150k
+2025-11-06 21:51:58.032 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:51:58.032 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+⚡ No responses yet - triggering structured persona analysis
+🎯 Starting structured persona analysis for 10 personas...
+✅ Persona 1 analyzed - Purchase intent: 85%
+✅ Persona 2 analyzed - Purchase intent: 85%
+✅ Persona 3 analyzed - Purchase intent: 85%
+✅ Persona 4 analyzed - Purchase intent: 85%
+✅ Persona 5 analyzed - Purchase intent: 45%
+✅ Persona 6 analyzed - Purchase intent: 85%
+✅ Persona 7 analyzed - Purchase intent: 75%
+✅ Persona 8 analyzed - Purchase intent: 85%
+✅ Persona 9 analyzed - Purchase intent: 45%
+✅ Persona 10 analyzed - Purchase intent: 65%
+📊 Aggregated metrics - Add to cart: 70%
+INFO:     127.0.0.1:65336 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'services/conversation_insights_engine.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5496]
+2025-11-06 21:57:10.531 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 21:57:10.532 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 21:57:10.532 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [7626]
+INFO:     Waiting for application startup.
+2025-11-06 21:57:10.533 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 21:57:10.536 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 21:57:10.536 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 21:57:10.536 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:57:10.536 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:57:10.536 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:57:10.536 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 21:57:10.536 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 21:57:10.536 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 21:57:10.536 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 21:57:10.536 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 21:57:16.344 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 21:57:16.344 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 21:57:16.344 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 21:57:16.344 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 21:57:16.344 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 21:57:16.344 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 21:57:16.344 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 21:57:16.347 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 40
+2025-11-06 21:57:16.348 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 21:57:16.348 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 21:57:16.348 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $50k-$75k
+2025-11-06 21:57:16.351 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 21:57:16.351 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+⚡ No responses yet - triggering structured persona analysis
+🎯 Starting structured persona analysis for 10 personas...
+✅ Persona 1 analyzed - Purchase intent: 85%
+✅ Persona 2 analyzed - Purchase intent: 85%
+✅ Persona 3 analyzed - Purchase intent: 85%
+✅ Persona 4 analyzed - Purchase intent: 65%
+✅ Persona 5 analyzed - Purchase intent: 45%
+✅ Persona 6 analyzed - Purchase intent: 85%
+✅ Persona 7 analyzed - Purchase intent: 85%
+✅ Persona 8 analyzed - Purchase intent: 85%
+✅ Persona 9 analyzed - Purchase intent: 65%
+✅ Persona 10 analyzed - Purchase intent: 65%
+📊 Aggregated metrics - Add to cart: 60%
+INFO:     127.0.0.1:49967 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'services/conversation_insights_engine.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7626]
+2025-11-06 22:01:42.669 | INFO     | main:__init__:1487 - Using basic NLP processing with TextBlob and NLTK
+2025-11-06 22:01:42.669 | INFO     | main:__init__:1504 - NLTK package punkt already available
+2025-11-06 22:01:42.669 | INFO     | main:__init__:1504 - NLTK package stopwords already available
+INFO:     Started server process [9436]
+INFO:     Waiting for application startup.
+2025-11-06 22:01:42.671 | INFO     | engines.rule_based_engine:__init__:59 - Initialized Rule-Based Engine with demographic constraints
+2025-11-06 22:01:42.674 | INFO     | engines.llm_engine:__init__:56 - Initialized LLM engine with AWS Bedrock model: arn:aws:bedrock:us-west-2:866647877267:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0
+2025-11-06 22:01:42.674 | INFO     | services.diversity_engine:__init__:124 - Initialized Diversity Engine with GAN/VAE architecture
+2025-11-06 22:01:42.674 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 22:01:42.674 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 22:01:42.674 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 22:01:42.674 | INFO     | engines.reinforcement_engine:_load_feedback_history:347 - Loaded 0 feedback records
+2025-11-06 22:01:42.674 | INFO     | engines.adversarial_engine:__init__:39 - Initialized AdversarialValidationEngine
+2025-11-06 22:01:42.674 | INFO     | services.clustering_aware_engine:__init__:31 - Initialized ClusteringAwareEngine
+2025-11-06 22:01:42.674 | INFO     | engines.hybrid_engine:__init__:132 - Initialized HybridPersonaEngine with all core components
+2025-11-06 22:01:42.674 | INFO     | main:startup_event:594 - Initializing advanced LLM and NLP services...
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+Device set to use mps:0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use mps:0
+spaCy model en_core_web_lg not found, falling back to en_core_web_sm
+2025-11-06 22:01:48.590 | INFO     | main:startup_event:622 - Advanced services initialized successfully
+2025-11-06 22:01:48.591 | INFO     | services.evaluation_metrics:__init__:104 - Initialized Evaluation Metrics system
+2025-11-06 22:01:48.591 | INFO     | services.clustering_engine:__init__:74 - Initialized Clustering Engine with multiple algorithms
+2025-11-06 22:01:48.591 | INFO     | services.distribution_matcher:__init__:42 - Initialized Distribution Matcher with real-world statistical targets
+2025-11-06 22:01:48.591 | DEBUG    | engines.rule_based_engine:_generate_age:112 - === AGE GENERATION DEBUG ===
+2025-11-06 22:01:48.591 | DEBUG    | engines.rule_based_engine:_generate_age:113 - age_range input: None (type: <class 'NoneType'>)
+2025-11-06 22:01:48.591 | DEBUG    | engines.rule_based_engine:_generate_age:132 - Using default age distribution
+2025-11-06 22:01:48.591 | DEBUG    | engines.rule_based_engine:_generate_age:136 - Generated age from default distribution: 42
+2025-11-06 22:01:48.592 | DEBUG    | engines.rule_based_engine:_generate_income:430 - === INCOME GENERATION DEBUG ===
+2025-11-06 22:01:48.592 | DEBUG    | engines.rule_based_engine:_generate_income:431 - constraints input: None (type: <class 'NoneType'>)
+2025-11-06 22:01:48.592 | DEBUG    | engines.rule_based_engine:_generate_income:478 - Generated income without constraints: $100k-$150k
+2025-11-06 22:01:48.596 | INFO     | main:startup_event:629 - System health check: degraded
+2025-11-06 22:01:48.597 | INFO     | main:startup_event:631 - ✅ Synthetic Persona Generation API initialized successfully
+INFO:     Application startup complete.
+🧠 Initializing Semantic Layer v2.0...
+✅ AWS Bedrock client initialized for archetype generation
+✅ AWS Bedrock client initialized
+   Model: anthropic.claude-3-5-sonnet-20241022-v2:0
+   Region: us-west-2
+✅ AWS Bedrock client initialized for audience evaluation
+✅ AWS Bedrock client initialized
+✅ LangGraph conversation system initialized (using memory checkpointer)
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762465615069-0.48294722657003164","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Beauty serum and vitamin c cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+⚡ No responses yet - triggering structured persona analysis
+🎯 Starting structured persona analysis for 10 personas...
+✅ Persona 1 analyzed - Purchase intent: 85%
+✅ Persona 2 analyzed - Purchase intent: 45%
+✅ Persona 3 analyzed - Purchase intent: 85%
+✅ Persona 4 analyzed - Purchase intent: 45%
+✅ Persona 5 analyzed - Purchase intent: 45%
+✅ Persona 6 analyzed - Purchase intent: 85%
+✅ Persona 7 analyzed - Purchase intent: 85%
+✅ Persona 8 analyzed - Purchase intent: 85%
+✅ Persona 9 analyzed - Purchase intent: 45%
+✅ Persona 10 analyzed - Purchase intent: 85%
+📊 Aggregated metrics - Add to cart: 60%
+INFO:     127.0.0.1:50609 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50720 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:50720 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:50722 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:50722 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51133 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:51133 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:51402 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:51402 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:51402 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:51402 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:52932 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53130 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53130 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+2025-11-06 22:32:55.699 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53130 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+2025-11-06 22:32:55.701 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53130 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53130 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53132 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+2025-11-06 22:33:01.840 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53132 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+2025-11-06 22:33:01.843 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53132 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53132 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53130 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+2025-11-06 22:33:06.248 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53130 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+2025-11-06 22:33:06.250 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53130 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53221 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53223 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+2025-11-06 22:33:26.597 | ERROR    | main:get_persona:1168 - Error retrieving persona a6e8c138-e8ce-4739-9748-5a67e443ddf1: object NoneType can't be used in 'await' expression
+INFO:     127.0.0.1:53230 - "GET /api/personas/a6e8c138-e8ce-4739-9748-5a67e443ddf1 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:53357 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53357 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53357 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53359 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53359 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53357 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/Saisrujan/Downloads/Synthetic Data/backend/features/synthetic_audience/api.py", line 1526, in chat_with_persona_enhanced
+    pipeline.cursor.execute("""
+  File "/Users/Saisrujan/Library/Python/3.9/lib/python/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+psycopg2.errors.InvalidTextRepresentation: invalid input syntax for type uuid: "undefined"
+LINE 11:             WHERE p.persona_uuid = 'undefined'
+                                            ^
+
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:53376 - "POST /api/audience/chat-with-persona-enhanced HTTP/1.1" 500 Internal Server Error
+✅ Connected to database
+INFO:     127.0.0.1:54316 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54374 - "POST /api/audience/chat-with-persona-enhanced HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54386 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54388 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54386 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54390 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:54420 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:54450 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54524 - "OPTIONS /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54524 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54680 - "OPTIONS /api/audience/select-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: Beauty product , Face care , Skin serum & cream
+Segment: Healthcare Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: Beauty product , Face care , Skin serum & cream
+Segment: Healthcare Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.1, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 828 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 828 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 828 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.712
+   Avg Category Weight: 0.938
+   Avg Final Score: 0.780
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:54680 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54682 - "OPTIONS /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54682 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54682 - "OPTIONS /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Healthcare Professionals
+Campaign: Beauty product , Face care , Skin serum & cream
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Premium Quality Professional (15.0%)
+   2. Value-Conscious Practitioner (40.0%)
+   3. Beauty-Focused Manager (25.0%)
+   4. Practical Minimalist (20.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Premium Quality Professional: 2 personas (20.0%)
+   - Value-Conscious Practitioner: 4 personas (40.0%)
+   - Beauty-Focused Manager: 2 personas (20.0%)
+   - Practical Minimalist: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.981 (98.1%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: Beauty product , Face care , Skin serum & cream
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 14.9s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:54693 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54693 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54713 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54693 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54715 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54726 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54902 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54904 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54904 - "OPTIONS /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54902 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54929 - "OPTIONS /api/audience/select-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: Beauty care product - Serum & Facial Cream
+Segment: Healthcare Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: Beauty care product - Serum & Facial Cream
+Segment: Healthcare Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.1, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 828 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 828 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 828 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.696
+   Avg Category Weight: 0.916
+   Avg Final Score: 0.762
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:54929 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54931 - "OPTIONS /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54931 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54931 - "OPTIONS /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Healthcare Professionals
+Campaign: Beauty care product - Serum & Facial Cream
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Price-Sensitive Practitioner (35.0%)
+   2. Appearance-Focused Manager (25.0%)
+   3. Wellness-Oriented Professional (20.0%)
+   4. Digital-Savvy Junior (20.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Price-Sensitive Practitioner: 4 personas (40.0%)
+   - Appearance-Focused Manager: 2 personas (20.0%)
+   - Wellness-Oriented Professional: 2 personas (20.0%)
+   - Digital-Savvy Junior: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.979 (97.9%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: Beauty care product - Serum & Facial Cream
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 14.3s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:54941 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54941 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54941 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54948 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54950 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54957 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:54959 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55006 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55008 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55008 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55006 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55006 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55008 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55006 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55021 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55028 - "POST /api/audience/chat-with-persona-enhanced HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55039 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55041 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55041 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: Beauty product - Skin Care & Anti aging serum
+Segment: Healthcare Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: Beauty product - Skin Care & Anti aging serum
+Segment: Healthcare Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.1, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 828 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 828 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 828 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.707
+   Avg Category Weight: 0.912
+   Avg Final Score: 0.768
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:55053 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55073 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Healthcare Professionals
+Campaign: Beauty product - Skin Care & Anti aging serum
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Premium-Seeking Professional (15.0%)
+   2. Value-Conscious Practitioner (45.0%)
+   3. Beauty-Forward Clinician (25.0%)
+   4. Minimalist Health Professional (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Premium-Seeking Professional: 2 personas (20.0%)
+   - Value-Conscious Practitioner: 4 personas (40.0%)
+   - Beauty-Forward Clinician: 2 personas (20.0%)
+   - Minimalist Health Professional: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.979 (97.9%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: Beauty product - Skin Care & Anti aging serum
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 14.6s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:55073 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55073 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55097 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55131 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55157 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55159 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: curly hair 
+Segment: Business Leaders
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: curly hair 
+Segment: Business Leaders
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'general', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 0.6, 'beauty_appearance': 0.3333333333333333, 'health_fitness': 0.3333333333333333, 'convenience_usage': 0.25}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 830 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 830 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 830 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.598
+   Avg Category Weight: 0.605
+   Avg Final Score: 0.600
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:55172 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55172 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Business Leaders
+Campaign: curly hair 
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Premium Executive (30.0%)
+   2. Value-Conscious Manager (35.0%)
+   3. Pragmatic Project Leader (20.0%)
+   4. Image-Conscious Senior Manager (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Premium Executive: 3 personas (30.0%)
+   - Value-Conscious Manager: 4 personas (40.0%)
+   - Pragmatic Project Leader: 2 personas (20.0%)
+   - Image-Conscious Senior Manager: 1 personas (10.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.974 (97.4%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: curly hair 
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 13.7s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:55172 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55172 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55181 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55181 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55172 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: curly hair
+Segment: Business Leaders
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: curly hair
+Segment: Business Leaders
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'general', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 0.6, 'beauty_appearance': 0.3333333333333333, 'health_fitness': 0.3333333333333333, 'convenience_usage': 0.25}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 830 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 830 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 830 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.598
+   Avg Category Weight: 0.605
+   Avg Final Score: 0.600
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:55232 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55232 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Business Leaders
+Campaign: curly hair
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Premium Executive (30.0%)
+   2. Value-Conscious Manager (35.0%)
+   3. Image-Conscious Project Leader (20.0%)
+   4. Practical Senior Manager (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Premium Executive: 3 personas (30.0%)
+   - Value-Conscious Manager: 4 personas (40.0%)
+   - Image-Conscious Project Leader: 2 personas (20.0%)
+   - Practical Senior Manager: 1 personas (10.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.974 (97.4%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: curly hair
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 14.3s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:55232 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55232 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55244 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55266 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55268 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55268 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55266 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55266 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55268 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55268 - "OPTIONS /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55266 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55287 - "OPTIONS /api/audience/select-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: Marketing campaign for a beauty care product - Anti Ageing serum & Cream
+Segment: Healthcare Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: Marketing campaign for a beauty care product - Anti Ageing serum & Cream
+Segment: Healthcare Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.1, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 828 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 828 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 828 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.670
+   Avg Category Weight: 1.004
+   Avg Final Score: 0.770
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:55287 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55289 - "OPTIONS /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55289 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55289 - "OPTIONS /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Healthcare Professionals
+Campaign: Marketing campaign for a beauty care product - Anti Ageing serum & Cream
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Value-Driven Practitioner (35.0%)
+   2. Premium Beauty Expert (25.0%)
+   3. Holistic Health Enthusiast (25.0%)
+   4. Minimalist Practitioner (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Value-Driven Practitioner: 4 personas (40.0%)
+   - Premium Beauty Expert: 2 personas (20.0%)
+   - Holistic Health Enthusiast: 2 personas (20.0%)
+   - Minimalist Practitioner: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.980 (98.0%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: Marketing campaign for a beauty care product - Anti Ageing serum & Cream
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 14.4s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:55297 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55297 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55304 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55297 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55306 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55306 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55316 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55336 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+Segment: Healthcare Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+Segment: Healthcare Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.1, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 828 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 828 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 828 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.667
+   Avg Category Weight: 1.026
+   Avg Final Score: 0.774
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:55404 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55421 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Healthcare Professionals
+Campaign: Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Research-Driven Professional (35.0%)
+   2. Premium Beauty Enthusiast (25.0%)
+   3. Cost-Conscious Practitioner (25.0%)
+   4. Minimalist Clinician (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Research-Driven Professional: 4 personas (40.0%)
+   - Premium Beauty Enthusiast: 2 personas (20.0%)
+   - Cost-Conscious Practitioner: 2 personas (20.0%)
+   - Minimalist Clinician: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.979 (97.9%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 14.1s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:55421 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55421 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55433 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55433 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55421 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55442 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:55463 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:55521 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762471610145-0.8904153862096595","type":"asset","content":"Uploaded image: Beauty Product t
+✅ Parsed 23 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:55544 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762471610145-0.8904153862096595","type":"asset","content":"Uploaded image: Beauty Product t
+✅ Parsed 23 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:55556 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762471610145-0.8904153862096595","type":"asset","content":"Uploaded image: Beauty Product t
+✅ Parsed 23 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:55649 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55881 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55881 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762472110675-0.6349740119587851","type":"asset","content":"Uploaded image: Beauty Product t
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Healthcare Professionals, campaign=Marketing campaign - related to beauty care -> Anti ageing serum & Cream
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+⚡ No responses yet - triggering structured persona analysis
+🎯 Starting structured persona analysis for 10 personas...
+✅ Persona 1 analyzed - Purchase intent: 85%
+✅ Persona 2 analyzed - Purchase intent: 45%
+✅ Persona 3 analyzed - Purchase intent: 65%
+✅ Persona 4 analyzed - Purchase intent: 45%
+✅ Persona 5 analyzed - Purchase intent: 45%
+✅ Persona 6 analyzed - Purchase intent: 65%
+✅ Persona 7 analyzed - Purchase intent: 65%
+✅ Persona 8 analyzed - Purchase intent: 65%
+✅ Persona 9 analyzed - Purchase intent: 85%
+✅ Persona 10 analyzed - Purchase intent: 45%
+📊 Aggregated metrics - Add to cart: 20%
+INFO:     127.0.0.1:55883 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55902 - "OPTIONS /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55902 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55904 - "OPTIONS /api/audience/select-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: We are planning a marketing campaign related to Beauty care product launch 
+Segment: Media Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: We are planning a marketing campaign related to Beauty care product launch 
+Segment: Media Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.0, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 792 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 792 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 792 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.681
+   Avg Category Weight: 0.980
+   Avg Final Score: 0.771
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:55904 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55919 - "OPTIONS /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55919 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55919 - "OPTIONS /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Media Professionals
+Campaign: We are planning a marketing campaign related to Beauty care product launch 
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Luxury Beauty Enthusiast (30.0%)
+   2. Digital Beauty Explorer (25.0%)
+   3. Practical Beauty Consumer (30.0%)
+   4. Minimal Beauty Maintainer (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Luxury Beauty Enthusiast: 3 personas (30.0%)
+   - Digital Beauty Explorer: 2 personas (20.0%)
+   - Practical Beauty Consumer: 3 personas (30.0%)
+   - Minimal Beauty Maintainer: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.973 (97.3%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: We are planning a marketing campaign related to Beauty care product launch 
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 13.6s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:55924 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55924 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55934 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55934 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55924 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:55943 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:55970 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762472289110-0.05845901300892098","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 12 messages from JSON string
+🔍 Looking for personas: segment=Media Professionals, campaign=We are planning a marketing campaign related to Beauty care product launch 
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:55997 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762472289110-0.05845901300892098","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 12 messages from JSON string
+🔍 Looking for personas: segment=Media Professionals, campaign=We are planning a marketing campaign related to Beauty care product launch 
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+Error calling LLM for analysis: Expecting value: line 1 column 1 (char 0)
+INFO:     127.0.0.1:56008 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56022 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762472467345-0.48407176990472744","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Media Professionals, campaign=We are planning a marketing campaign related to Beauty care product launch 
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+⚡ No responses yet - triggering structured persona analysis
+🎯 Starting structured persona analysis for 10 personas...
+✅ Persona 1 analyzed - Purchase intent: 65%
+✅ Persona 2 analyzed - Purchase intent: 45%
+✅ Persona 3 analyzed - Purchase intent: 45%
+✅ Persona 4 analyzed - Purchase intent: 75%
+✅ Persona 5 analyzed - Purchase intent: 85%
+✅ Persona 6 analyzed - Purchase intent: 75%
+✅ Persona 7 analyzed - Purchase intent: 45%
+✅ Persona 8 analyzed - Purchase intent: 65%
+✅ Persona 9 analyzed - Purchase intent: 45%
+✅ Persona 10 analyzed - Purchase intent: 45%
+📊 Aggregated metrics - Add to cart: 30%
+INFO:     127.0.0.1:56026 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56048 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56052 - "DELETE /api/audience/delete-all-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+================================================================================
+STEP 1: TRAIT SELECTION FOR CAMPAIGN
+================================================================================
+Query: New product Launch - Marketing Campaign - Beauty product
+Segment: Media Professionals
+Max traits: 50
+
+🚀 ENHANCED FOUR-LAYER TRAIT SELECTION v2.0 (No Caching)
+Query: New product Launch - Marketing Campaign - Beauty product
+Segment: Media Professionals
+============================================================
+🔍 Layer 2: Analyzing context...
+   Context: {'price_point': 'medium', 'category': 'beauty', 'campaign_type': 'product_launch', 'urgency_level': 'medium', 'target_specificity': 'general'}
+📚 Layer 3: Applying domain knowledge...
+   Category weights: {'demographics': 1.0, 'purchasing_behavior': 1.0, 'beauty_appearance': 1.0}...
+💾 Fetching traits from normalized schema...
+   📊 Retrieved 792 traits from normalized schema
+🧠 Layer 1: Calculating semantic similarities...
+   Using 792 valid embeddings (384-dim)
+⚡ Layer 4: Computing dynamic scores with relevance filtering...
+   Filtered to 792 relevant traits (applied semantic threshold)
+   Selected 8 demographic traits (campaign-relevant only)
+
+📊 Selection Results:
+   Selected: 50 traits
+   Avg Semantic Score: 0.677
+   Avg Category Weight: 0.970
+   Avg Final Score: 0.765
+
+✅ Trait selection complete!
+   Selected 50 traits
+   Quality score: 0.000
+   Ready for user review
+INFO:     127.0.0.1:56063 - "POST /api/audience/select-traits HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56074 - "POST /api/audience/update-traits HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+
+🎭 Generating 10 personas...
+
+================================================================================
+STEP 2: GENERATING 10 PERSONAS
+================================================================================
+Segment: Media Professionals
+Campaign: New product Launch - Marketing Campaign - Beauty product
+Traits to sample: 50
+
+🎯 Calculating archetype-based trait assignments...
+
+================================================================================
+ARCHETYPE-BASED TRAIT ASSIGNMENT
+================================================================================
+
+🎯 Generating 4 realistic persona archetypes...
+✅ Generated 4 archetypes:
+   1. Digital Beauty Expert (30.0%)
+   2. Premium Beauty Consumer (25.0%)
+   3. Practical Beauty Maintainer (30.0%)
+   4. Minimal Beauty Dabbler (15.0%)
+
+👥 Assigning 10 personas to archetypes...
+   Archetype distribution:
+   - Digital Beauty Expert: 3 personas (30.0%)
+   - Premium Beauty Consumer: 2 personas (20.0%)
+   - Practical Beauty Maintainer: 3 personas (30.0%)
+   - Minimal Beauty Dabbler: 2 personas (20.0%)
+
+🎲 Assigning traits to personas based on archetypes...
+
+📊 Validating population statistics...
+👥 Generating 10 personas...
+
+📊 Generation Complete!
+   Personas generated: 10
+   Statistical accuracy: 0.973 (97.3%)
+   ✅ Accuracy meets 0.95 threshold
+
+📝 Generating LLM narratives for 10 personas...
+
+📝 Generating narratives for 10 personas...
+   Batch size: 20
+   Campaign: New product Launch - Marketing Campaign - Beauty product
+   Mode: Parallel
+   Using 20 parallel threads for faster generation...
+      Generated 10/10 narratives (0.7/sec, ~0s remaining)
+
+✅ Narrative generation complete in 13.5s
+   Success: 10/10
+
+================================================================================
+STEP 3: STORING PERSONAS IN DATABASE
+================================================================================
+
+✅ Storage complete!
+   Personas stored: 10
+   Success rate: 100.0%
+INFO:     127.0.0.1:56074 - "POST /api/audience/generate-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56074 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56079 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56079 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56104 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+📊 Insights request - conversation_history type: <class 'str'>
+📊 First 100 chars: [{"id":"1762472637971-0.21345512619216755","type":"asset","content":"Uploaded image: Beauty Product 
+✅ Parsed 1 messages from JSON string
+🔍 Looking for personas: segment=Media Professionals, campaign=New product Launch - Marketing Campaign - Beauty product
+✅ Connected to normalized database
+✅ Connected to database
+✅ Loaded 10 personas from database
+📊 Generating insights with structured persona analysis...
+⚡ No responses yet - triggering structured persona analysis
+🎯 Starting structured persona analysis for 10 personas...
+✅ Persona 1 analyzed - Purchase intent: 75%
+✅ Persona 2 analyzed - Purchase intent: 65%
+✅ Persona 3 analyzed - Purchase intent: 75%
+✅ Persona 4 analyzed - Purchase intent: 65%
+✅ Persona 5 analyzed - Purchase intent: 45%
+✅ Persona 6 analyzed - Purchase intent: 65%
+✅ Persona 7 analyzed - Purchase intent: 45%
+✅ Persona 8 analyzed - Purchase intent: 45%
+✅ Persona 9 analyzed - Purchase intent: 75%
+✅ Persona 10 analyzed - Purchase intent: 65%
+📊 Aggregated metrics - Add to cart: 30%
+INFO:     127.0.0.1:56110 - "POST /api/audience/generate-insights-dashboard HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:56134 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+⚡ Calling 10 personas in parallel...
+✅ All 10 personas responded!
+INFO:     127.0.0.1:56174 - "POST /api/audience/chat-with-group HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56211 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56213 - "OPTIONS /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56211 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56213 - "POST /api/audience/get-persona-detail HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56215 - "POST /api/audience/chat-with-persona-enhanced HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56217 - "POST /api/audience/chat-with-persona-enhanced HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56217 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56237 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56217 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:56237 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58239 - "OPTIONS /api/audience/get-personas HTTP/1.1" 200 OK
+✅ Connected to normalized database
+✅ Connected to database
+INFO:     127.0.0.1:58239 - "POST /api/audience/get-personas HTTP/1.1" 200 OK
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
